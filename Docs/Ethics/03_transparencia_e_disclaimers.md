@@ -28,6 +28,8 @@ A aplicação de inteligência artificial no domínio da nutrição e saúde exi
 > 1. **Não fazemos prescrições:** O aplicativo não elabora dietas, planos alimentares ou recomendações de suplementação individualizadas.
 > 2. **Não substitui profissionais de saúde:** Nenhuma resposta substitui consultas com nutricionistas ou médicos.
 > 3. **Públicos com necessidades especiais:** Se você possui condições clínicas (como diabetes, hipertensão ou doença celíaca), gestação ou histórico de transtornos alimentares, consulte sempre seu profissional de referência.
+> 4. **Aviso Específico para Gestantes e Lactantes:** Se você está grávida ou amamentando, não siga recomendações genéricas de internet. A nutrição gestacional exige acompanhamento pré-natal individualizado para evitar riscos ao desenvolvimento fetal.
+> 5. **Uso Exclusivo para Maiores de 18 anos:** O aplicativo é de uso estritamente proibido para menores de idade, em conformidade com o Art. 14 da LGPD sobre tratamento de dados de saúde de crianças e adolescentes.
 
 ### 2.3. Disclaimer para Situações de Incerteza Científica
 
@@ -49,3 +51,10 @@ Para garantir a máxima transparência, cada card de checagem no aplicativo deve
 ```
 
 ---
+## 4. Resolução de Pendências Éticas
+
+1. **Detecção da Persona Camila (Contexto Implícito / TCA):**
+   * A camada de segurança do sistema utilizará análise semântica direta no *prompt* de entrada para identificar padrões de vulnerabilidade e histórico de transtorno alimentar, não dependendo exclusivamente dos dados cadastrais do perfil.
+
+2. **Disclaimer de Onboarding:**
+   * O texto padrão de primeiro acesso foi devidamente homologado na Seção 2.2 deste documento, explicitando a proibição para menores de 18 anos (LGPD Art. 14) e os limites operacionais da IA.
