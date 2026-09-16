@@ -27,6 +27,7 @@ class Feedback:
 
     trace_id: str
     rating: str
+    usuario_hash: str | None = None
     reason: str | None = None
     comment: str | None = None
     criado_em: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -54,6 +55,10 @@ class RepositorioEmMemoria:
     def salvar(self, feedback: Feedback) -> str:
         self.registrados.append(feedback)
         return str(uuid.uuid4())
+
+    def limpar(self) -> None:
+        """Usado pelos testes para isolar um caso do outro."""
+        self.registrados.clear()
 
 
 class RepositorioSupabase:
