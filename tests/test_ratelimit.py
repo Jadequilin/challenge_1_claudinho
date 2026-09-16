@@ -7,10 +7,19 @@ Tres coisas precisam valer, e as tres ja falharam em alguma versao:
 3. o `retry_after` diz o tempo real ate liberar, e nao um numero fixo.
 """
 
+import asyncio
+from types import SimpleNamespace
+
+import pytest
 from conftest import AUTH, auth_de
+from limits import parse
+
+from APP.errors import ApiError
+from APP.ratelimit import LIMITE_CHECK_CLAIM, limitar
 
 CHECAGEM = {"input_type": "text", "text": "agua com limao queima gordura?"}
-LIMITE = 10  # APP/ratelimit.LIMITE_CHECK_CLAIM
+# Lido da constante para o teste acompanhar uma mudanca de limite em vez de quebrar.
+LIMITE = LIMITE_CHECK_CLAIM.amount
 
 
 def _checar(client, headers=AUTH, corpo=CHECAGEM):
@@ -80,8 +89,24 @@ class TestRespostaDo429:
         assert 0 < retry_after <= 60
         assert resposta.headers["Retry-After"] == str(retry_after)
 
-    def test_escrita_tem_limite_proprio(self, client):
-        """O /feedback usa LIMITE_ESCRITA (30/min), entao 11 chamadas passam."""
+    def test_retry_after_acompanha_a_janela(self):
+        """Regressao: o valor era fixo em 60, qualquer que fosse a janela.
+
+        Com um limite por hora, mandar o cliente tentar de novo em 60 segundos o joga
+        num laco de 429 pelos 59 minutos seguintes. O teste chama a dependencia direto
+        porque nenhuma rota usa janela de hora hoje.
+        """
+        checar = limitar(parse("1/hour"))
+        pedido = SimpleNamespace(headers={}, client=SimpleNamespace(host="203.0.113.7"))
+
+        asyncio.run(checar(pedido))
+        with pytest.raises(ApiError) as excecao:
+            asyncio.run(checar(pedido))
+
+        assert excecao.value.extras["retry_after"] > 60
+
+    def test_escrita_nao_usa_a_cota_do_check_claim(self, client):
+        """O /feedback tem limite proprio (LIMITE_ESCRITA), maior que o da checagem."""
         corpo = {"trace_id": "7c1f2a90-3e4b-4d21-9f10-0b2a5c8e4d33", "rating": "up"}
 
         respostas = [
