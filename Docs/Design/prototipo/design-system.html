@@ -106,6 +106,16 @@
   pre { margin: 0; overflow-x: auto; padding: var(--s-4); border-radius: var(--r-md); background: var(--c-sunken); font-size: 0.82rem; line-height: 1.55; }
   pre code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 
+  .tema { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+  .tema-btn { min-height: 40px; padding-inline: 14px; border-radius: var(--r-pill); border: 1.5px solid var(--c-line-strong); background: var(--c-surface); font-size: var(--t-small); font-weight: 700; }
+  .tema-btn[aria-pressed="true"] { background: var(--c-brand-tint); border-color: var(--c-brand); color: var(--c-brand); }
+
+  .fluxo { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--s-4); }
+  .etapa { display: grid; gap: var(--s-2); padding: var(--s-5); border-radius: var(--r-lg); background: var(--c-surface); border: 1px solid var(--c-line); align-content: start; }
+  .etapa b { font-size: var(--t-body); }
+  .etapa p { font-size: var(--t-small); color: var(--c-ink-2); }
+  .etapa .quando { font-size: var(--t-caption); font-weight: 700; color: var(--c-brand); }
+
   .pending { display: grid; gap: var(--s-3); max-width: 70ch; }
   .pending li { display: grid; grid-template-columns: 22px 1fr; gap: var(--s-3); font-size: var(--t-body); }
   .pending .lucide { color: var(--c-cautela-ink); }
@@ -117,8 +127,14 @@
     <h1>Design system do Claudinho</h1>
     <p class="lede">Cores, tipografia, componentes e tom de voz do PWA que checa desinformação nutricional. O <a href="https://claude.ai/artifact/UF6fRGYf4Yh1coCJGMXgu9" target="_blank" rel="noopener">protótipo navegável</a> usa exatamente este CSS, então o que está aqui é o que roda nas telas.</p>
     <nav class="jump" aria-label="Seções">
-      <a href="#principios">Princípios</a><a href="#cores">Cores</a><a href="#tipografia">Tipografia</a><a href="#forma">Espaço e forma</a><a href="#componentes">Componentes</a><a href="#vereditos">Vereditos</a><a href="#voz">Tom de voz</a><a href="#mobile">Mobile e PWA</a>
+      <a href="#principios">Princípios</a><a href="#cores">Cores</a><a href="#tipografia">Tipografia</a><a href="#forma">Espaço e forma</a><a href="#componentes">Componentes</a><a href="#vereditos">Vereditos</a><a href="#voz">Tom de voz</a><a href="#conta">Conta e histórico</a><a href="#mobile">Mobile e PWA</a>
     </nav>
+    <div class="tema" role="group" aria-label="Tema desta página">
+      <span class="small muted">Ver esta página em</span>
+      <button class="tema-btn" data-tema="auto" aria-pressed="true">Automático</button>
+      <button class="tema-btn" data-tema="light" aria-pressed="false">Claro</button>
+      <button class="tema-btn" data-tema="dark" aria-pressed="false">Escuro</button>
+    </div>
   </header>
 
   <section class="block" id="principios" aria-labelledby="h-principios">
@@ -137,7 +153,8 @@
   <section class="block" id="cores" aria-labelledby="h-cores">
     <div class="block-head">
       <h2 id="h-cores">Cores</h2>
-      <p class="lede">Os nomes vêm de comida brasileira do dia a dia. A estratégia é contida: neutros em quase toda a tela e a cor forte guardada para o veredito.</p>
+      <p class="lede">Os nomes vêm de comida brasileira do dia a dia. A estratégia é contida: neutros em quase toda a tela e a cor forte guardada para o veredito. Os tons são claros de propósito, e o fundo é um branco levemente quente em vez de <code class="mono">#FFFFFF</code>, que cansa menos a vista em tela de celular.</p>
+      <p class="small muted" style="max-width:64ch">Verde não entra como cor de marca, mesmo sendo o reflexo da categoria: ele já significa "tem base científica" no veredito, e repetir o mesmo verde na interface tiraria esse sinal.</p>
     </div>
 
     <div class="brand-strip">
@@ -149,25 +166,25 @@
     <div>
       <p class="sub">Neutros e marca</p>
       <div class="swatches">
-        <div class="swatch"><div class="chip-color" style="background:var(--c-ground)"></div><b>Papel</b><code>--c-ground</code><span class="caption">#F6F5F9 claro, #16121A escuro. Fundo das telas.</span></div>
-        <div class="swatch"><div class="chip-color" style="background:var(--c-surface)"></div><b>Superfície</b><code>--c-surface</code><span class="caption">#FDFCFE claro, #201A24 escuro. Campos e botões secundários.</span></div>
-        <div class="swatch"><div class="chip-color" style="background:var(--c-sunken)"></div><b>Rebaixado</b><code>--c-sunken</code><span class="caption">#EDECF2 claro, #0F0B12 escuro. Bolha do usuário e trechos citados.</span></div>
-        <div class="swatch"><div class="chip-color" style="background:var(--c-ink)"></div><b>Tinta</b><code>--c-ink</code><span class="caption">#271D2E claro, #F0EDF4 escuro. 14,9:1 e 16:1 sobre o papel.</span></div>
-        <div class="swatch"><div class="chip-color" style="background:var(--c-ink-2)"></div><b>Tinta 2</b><code>--c-ink-2</code><span class="caption">#584E5F claro, #C2BAC8 escuro. 7,2:1 e 9,9:1.</span></div>
-        <div class="swatch"><div class="chip-color" style="background:var(--c-ink-3)"></div><b>Tinta 3</b><code>--c-ink-3</code><span class="caption">#6D6673 claro, #A29BA8 escuro. 5,1:1 e 6,9:1. Legendas.</span></div>
-        <div class="swatch"><div class="chip-color" style="background:var(--c-line-strong)"></div><b>Borda de campo</b><code>--c-line-strong</code><span class="caption">Contorno de campos, chips e botões secundários.</span></div>
-        <div class="swatch"><div class="chip-color" style="background:var(--c-brand)"></div><b>Jabuticaba</b><code>--c-brand</code><span class="caption">#622E71 claro, #D9A9E8 escuro. Ação principal e seleção.</span></div>
+        <div class="swatch"><div class="chip-color" style="background:var(--c-ground)"></div><b>Papel</b><code>--c-ground</code><span class="caption">#FCFAF6 claro, #20181D escuro. Fundo das telas.</span></div>
+        <div class="swatch"><div class="chip-color" style="background:var(--c-surface)"></div><b>Superfície</b><code>--c-surface</code><span class="caption">#FFFFFD claro, #2A2127 escuro. Campos e botões secundários.</span></div>
+        <div class="swatch"><div class="chip-color" style="background:var(--c-sunken)"></div><b>Rebaixado</b><code>--c-sunken</code><span class="caption">#F4F0E7 claro, #151013 escuro. Bolha do usuário e trechos citados.</span></div>
+        <div class="swatch"><div class="chip-color" style="background:var(--c-ink)"></div><b>Tinta</b><code>--c-ink</code><span class="caption">#402F3A claro, #F6F0F3 escuro. 11,9:1 e 15,4:1 sobre o papel.</span></div>
+        <div class="swatch"><div class="chip-color" style="background:var(--c-ink-2)"></div><b>Tinta 2</b><code>--c-ink-2</code><span class="caption">#705D69 claro, #CBC0C7 escuro. 5,8:1 e 9,9:1.</span></div>
+        <div class="swatch"><div class="chip-color" style="background:var(--c-ink-3)"></div><b>Tinta 3</b><code>--c-ink-3</code><span class="caption">#73646D claro, #ABA1A7 escuro. 5,4:1 e 7,0:1. Legendas.</span></div>
+        <div class="swatch"><div class="chip-color" style="background:var(--c-line-strong)"></div><b>Borda de campo</b><code>--c-line-strong</code><span class="caption">#958890 claro, #83767E escuro. 3,4:1 e 3,6:1, acima do mínimo de 3:1 para contorno.</span></div>
+        <div class="swatch"><div class="chip-color" style="background:var(--c-brand)"></div><b>Jabuticaba clara</b><code>--c-brand</code><span class="caption">#A3489D claro, #EDAAE6 escuro. Ação principal e seleção. 5,1:1 com texto branco.</span></div>
       </div>
     </div>
 
     <div>
       <p class="sub">Vereditos: fundo e tinta de cada selo</p>
       <div class="verdict-pairs">
-        <div class="pair" data-verdict="seguro"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Couve</b><span class="mono">--c-seguro-bg #CDF1D3, --c-seguro-ink #104F29</span></span><span class="ratio"><span>7,9:1</span><span class="caption">escuro 9,4:1</span></span></div>
-        <div class="pair" data-verdict="cautela"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Maracujá</b><span class="mono">--c-cautela-bg #FFE5AF, --c-cautela-ink #6E4108</span></span><span class="ratio"><span>7,0:1</span><span class="caption">escuro 9,2:1</span></span></div>
-        <div class="pair" data-verdict="desinformacao"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Pitanga</b><span class="mono">--c-mito-bg #FFDAD6, --c-mito-ink #972527</span></span><span class="ratio"><span>6,2:1</span><span class="caption">escuro 8,6:1</span></span></div>
-        <div class="pair" data-verdict="sem_evidencia"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Ardósia</b><span class="mono">--c-sem-bg #DEE9F5, --c-sem-ink #39495D</span></span><span class="ratio"><span>7,5:1</span><span class="caption">escuro 9,2:1</span></span></div>
-        <div class="pair" data-verdict="recusa_segura"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Jabuticaba clara</b><span class="mono">--c-brand-tint #F4E3F9, --c-brand #622E71</span></span><span class="ratio"><span>8,0:1</span><span class="caption">escuro 7,2:1</span></span></div>
+        <div class="pair" data-verdict="seguro"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Couve</b><span class="mono">--c-seguro-bg #D2F6DD, --c-seguro-ink #17653C</span></span><span class="ratio"><span>6,1:1</span><span class="caption">escuro 8,6:1</span></span></div>
+        <div class="pair" data-verdict="cautela"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Maracujá</b><span class="mono">--c-cautela-bg #FFECB9, --c-cautela-ink #875814</span></span><span class="ratio"><span>5,2:1</span><span class="caption">escuro 8,7:1</span></span></div>
+        <div class="pair" data-verdict="desinformacao"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Pitanga</b><span class="mono">--c-mito-bg #FFE0DC, --c-mito-ink #B33736</span></span><span class="ratio"><span>4,8:1</span><span class="caption">escuro 8,0:1</span></span></div>
+        <div class="pair" data-verdict="sem_evidencia"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Ardósia</b><span class="mono">--c-sem-bg #E3EEFA, --c-sem-ink #485C77</span></span><span class="ratio"><span>5,8:1</span><span class="caption">escuro 8,5:1</span></span></div>
+        <div class="pair" data-verdict="recusa_segura"><span class="pair-sample" aria-hidden="true">Aa</span><span class="pair-name"><b>Jabuticaba clara</b><span class="mono">--c-brand-tint #FDE7FA, --c-brand #A3489D</span></span><span class="ratio"><span>4,5:1</span><span class="caption">escuro 6,6:1</span></span></div>
       </div>
     </div>
     <p class="small muted" style="max-width:64ch">Cor nunca é o único sinal: todo veredito leva ícone e rótulo escrito. Os valores são definidos em OKLCH no CSS, os hexadecimais acima são aproximações para ferramentas de design.</p>
@@ -401,6 +418,64 @@
     </div>
   </section>
 
+  <section class="block" id="conta" aria-labelledby="h-conta">
+    <div class="block-head">
+      <h2 id="h-conta">Conta e histórico</h2>
+      <p class="lede">Ninguém precisa criar conta para checar. A conta aparece quando ela passa a resolver um problema real da pessoa, que é não perder o que já foi salvo.</p>
+    </div>
+
+    <div class="fluxo">
+      <div class="etapa">
+        <span class="quando">Primeiro acesso</span>
+        <b>Usa sem conta</b>
+        <p>Termos, confirmação de 18 anos e pronto: já dá para checar. A primeira tela nunca é um formulário de cadastro.</p>
+      </div>
+      <div class="etapa">
+        <span class="quando">Durante o uso</span>
+        <b>Histórico e perfil ficam no aparelho</b>
+        <p>As checagens e o perfil de saúde são gravados localmente. O app diz isso com todas as letras, em vez de deixar a pessoa descobrir quando perder.</p>
+      </div>
+      <div class="etapa">
+        <span class="quando">Depois de 3 checagens</span>
+        <b>Convite para guardar</b>
+        <p>Um convite dispensável no histórico e uma seção no Perfil. Nunca um bloqueio no meio da checagem.</p>
+      </div>
+      <div class="etapa">
+        <span class="quando">Ao criar a conta</span>
+        <b>Nada se perde</b>
+        <p>O que já estava salvo continua igual. A tela mostra quantas checagens estão guardadas antes de pedir e-mail e senha.</p>
+      </div>
+    </div>
+
+    <div>
+      <p class="sub">O que exige conta</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ação</th><th>Precisa de conta?</th><th>Por quê</th></tr></thead>
+          <tbody>
+            <tr><td>Checar por texto, link ou print</td><td><strong>Não</strong></td><td>É o valor do produto. Pedir cadastro antes de mostrar valor é o motivo mais comum de abandono no primeiro uso</td></tr>
+            <tr><td>Ver o histórico</td><td><strong>Não</strong></td><td>Fica no aparelho, como no app do Yuka e em qualquer leitor de código de barras</td></tr>
+            <tr><td>Preencher o perfil de saúde</td><td><strong>Não</strong></td><td>O perfil serve para proteger quem pergunta. Condicioná-lo a cadastro afastaria justamente quem mais precisa do filtro</td></tr>
+            <tr><td>Levar histórico e perfil para outro aparelho</td><td><strong>Sim</strong></td><td>É o que a conta resolve, e é por isso que o convite aparece aqui e não antes</td></tr>
+            <tr><td>Apagar os dados do servidor</td><td><strong>Sim</strong></td><td>Sem identidade permanente não dá para atender um pedido de exclusão com segurança</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <p class="sub">Como isso se sustenta no backend</p>
+      <div class="rules">
+        <p class="rule"><i data-lucide="user-round" aria-hidden="true"></i><span><b>Sessão anônima do Supabase</b>O <code class="mono">signInAnonymously</code> cria um usuário de verdade, com JWT e claim <code class="mono">is_anonymous</code>. A API continua exigindo <code class="mono">Authorization: Bearer</code>, então nada muda no contrato nem no rate limiting por identidade.</span></p>
+        <p class="rule"><i data-lucide="link" aria-hidden="true"></i><span><b>Conversão sem perder dado</b>Ao criar a conta, o <code class="mono">updateUser</code> ou o <code class="mono">linkIdentity</code> anexa a identidade ao mesmo usuário. O <code class="mono">user_id</code> não muda, então perfil e feedback continuam apontando para a mesma pessoa.</span></p>
+        <p class="rule"><i data-lucide="shield-alert" aria-hidden="true"></i><span><b>Sessão anônima é fácil de criar em massa</b>Como qualquer um gera identidades novas, o limite por usuário não basta sozinho. Ele precisa conviver com limite por IP e com CAPTCHA invisível no cadastro anônimo, que é a recomendação do próprio Supabase.</span></p>
+        <p class="rule"><i data-lucide="trash-2" aria-hidden="true"></i><span><b>Limpeza não é automática</b>Contas anônimas antigas ficam no banco até alguém apagar. Precisa de uma rotina, combinada com a frente de Dados.</span></p>
+        <p class="rule"><i data-lucide="lock" aria-hidden="true"></i><span><b>LGPD não muda por ser anônimo</b>Condição clínica continua sendo dado sensível, então o consentimento explícito continua obrigatório, com ou sem conta.</span></p>
+        <p class="rule"><i data-lucide="key" aria-hidden="true"></i><span><b>RLS por tipo de usuário</b>As políticas do banco olham o <code class="mono">is_anonymous</code> para decidir o que a sessão sem conta pode fazer.</span></p>
+      </div>
+    </div>
+  </section>
+
   <section class="block" id="mobile" aria-labelledby="h-mob">
     <div class="block-head">
       <h2 id="h-mob">Mobile e PWA</h2>
@@ -433,10 +508,27 @@
       <li><i data-lucide="circle-alert" aria-hidden="true"></i><span>A <b>Docs/User/02</b> ainda justifica app nativo e descarta PWA. Precisa refletir a decisão nova, inclusive a limitação de compartilhar no iPhone.</span></li>
       <li><i data-lucide="circle-alert" aria-hidden="true"></i><span>O exemplo de resposta da <b>Production/01</b> e o mock da API trazem <code class="mono">risk_score: 0.78</code> com <code class="mono">risk_level: "baixo"</code>. Pelos limiares, 0,78 é risco alto. O protótipo não exibe o nível até isso ser alinhado.</span></li>
       <li><i data-lucide="circle-alert" aria-hidden="true"></i><span>Falta definir se gestação e amamentação entram em <code class="mono">conditions</code> ou ganham campo próprio. O protótipo trata como condição.</span></li>
+      <li><i data-lucide="circle-alert" aria-hidden="true"></i><span>Uso sem conta depende de ligar o <b>anonymous sign-in</b> no Supabase, com CAPTCHA, limite por IP além do limite por identidade e uma rotina de limpeza das contas anônimas antigas.</span></li>
+      <li><i data-lucide="circle-alert" aria-hidden="true"></i><span>Falta decidir o que acontece quando a pessoa entra numa conta que já tem histórico: manter o do aparelho, o da conta, ou juntar os dois.</span></li>
       <li><i data-lucide="circle-alert" aria-hidden="true"></i><span>Claudinho é o nome do repositório e da API. Se o produto ganhar outro nome, só a marca muda.</span></li>
     </ul>
   </section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js" integrity="sha384-hJnF5AwidE18GSWTAGHv3ByzzvfNZ1Tcx5y1UUV3WkauuMCEzBJBMSwSt/PUPXnM" crossorigin="anonymous"></script>
-<script>window.lucide && window.lucide.createIcons();</script>
+<script>
+  window.lucide && window.lucide.createIcons();
+
+  // Seletor de tema desta pagina. No automatico o atributo sai e o prefers-color-scheme
+  // volta a mandar, que e o mesmo caminho do app.
+  const botoes = document.querySelectorAll('.tema-btn');
+  const guardado = (() => { try { return localStorage.getItem('claudinho:ds-tema'); } catch (e) { return null; } })();
+  function aplicar(tema) {
+    if (tema === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', tema);
+    botoes.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tema === tema)));
+    try { localStorage.setItem('claudinho:ds-tema', tema); } catch (e) { /* sem armazenamento */ }
+  }
+  botoes.forEach((b) => b.addEventListener('click', () => aplicar(b.dataset.tema)));
+  if (guardado) aplicar(guardado);
+</script>

@@ -84,6 +84,9 @@
   .hero .wordmark { color: var(--c-hero-ink); }
   .hero-title { font-family: var(--font-display); font-size: 2rem; line-height: 1.06; font-weight: 700; letter-spacing: -0.025em; text-wrap: balance; }
   .hero p { color: var(--c-hero-ink-2); font-size: var(--t-read); line-height: 1.5; max-width: 32ch; }
+  .hero-nota { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-small); font-weight: 700; color: var(--c-brand); }
+  .hero-nota .lucide { width: 18px; height: 18px; }
+  .dock-links { display: flex; justify-content: space-between; gap: var(--s-2); }
   .terms { display: grid; gap: var(--s-4); }
   .term { display: grid; grid-template-columns: 24px 1fr; gap: var(--s-3); font-size: var(--t-small); line-height: 1.5; color: var(--c-ink-2); }
   .term .lucide { color: var(--c-brand); margin-top: 1px; }
@@ -166,7 +169,8 @@
     <div class="panel-group">
       <h2>Primeiro acesso</h2>
       <button class="go" data-go="welcome">Boas-vindas e termos</button>
-      <button class="go" data-go="signup">Criar conta</button>
+      <button class="go" data-go="home">Uso sem conta</button>
+      <button class="go" data-go="conta">Criar conta (opcional)</button>
       <button class="go" data-go="invite">Convite para o perfil</button>
       <button class="go" data-go="profileEdit">Perfil de saúde</button>
       <button class="go" data-go="blocked">Menor de 18 anos</button>
@@ -321,6 +325,12 @@
   const S = {
     screen: 'home',
     tab: 'home',
+    // Sem conta por padrao: o uso comeca no primeiro toque e a conta so entra quando
+    // o usuario quiser levar o histórico para outro aparelho.
+    conta: store.get('conta', null),
+    modoConta: 'criar',
+    contaDispensada: store.get('contaDispensada', false),
+    tema: store.get('tema', 'auto'),
     profile: store.get('profile', null),
     history: store.get('history', SEED_HISTORY),
     installDismissed: store.get('installDismissed', false),
@@ -409,6 +419,7 @@
               <span class="wordmark">claudinho</span>
               <h1 class="hero-title screen-title" tabindex="-1">Viu algo sobre comida na internet e bateu a dúvida?</h1>
               <p>Me manda o post, o print ou a pergunta. Eu checo nos estudos científicos brasileiros e te explico sem complicar.</p>
+              <p class="hero-nota">${icon('zap')}Sem cadastro para começar</p>
             </section>
             <section class="stack-sm" aria-labelledby="termos">
               <h2 class="h2" id="termos">Importante saber antes de usar</h2>
@@ -426,8 +437,11 @@
           ${S.reviewTerms
             ? `<button class="btn btn-primary btn-block" data-go="profile">Voltar para o perfil</button>`
             : `<label class="check" for="agree" style="padding-block:0 4px"><input type="checkbox" id="agree"><span>Tenho 18 anos ou mais e concordo com esses termos.</span></label>
-               <button class="btn btn-primary btn-block" id="agree-btn" data-action="agree" disabled>Concordar e continuar</button>
-               <button class="btn btn-ghost btn-block" data-go="blocked">Tenho menos de 18 anos</button>`}
+               <button class="btn btn-primary btn-block" id="agree-btn" data-action="agree" disabled>Começar a checar</button>
+               <div class="dock-links">
+                 <button class="btn btn-ghost btn-sm" data-action="entrar">Já tenho conta</button>
+                 <button class="btn btn-ghost btn-sm" data-go="blocked">Tenho menos de 18</button>
+               </div>`}
         </div>
       </div>`;
     },
@@ -446,15 +460,20 @@
       </div>`;
     },
 
-    signup() {
+    conta() {
+      const criando = S.modoConta === 'criar';
+      const checagens = S.history.length;
       return `<div class="screen">
-        <header class="topbar">${back('welcome')}</header>
+        <header class="topbar">${back(S.screen === 'conta' && S.voltarPara ? S.voltarPara : 'home')}</header>
         <main class="scroll">
           <form class="stack" id="signup-form" novalidate>
             <div class="stack-sm">
-              <h1 class="h1 screen-title" tabindex="-1">Crie sua conta</h1>
-              <p class="lede">A conta guarda seu perfil de saúde com segurança, se você quiser preencher um.</p>
+              <h1 class="h1 screen-title" tabindex="-1">${criando ? 'Criar conta' : 'Entrar na sua conta'}</h1>
+              <p class="lede">${criando
+                ? 'Hoje suas checagens e seu perfil ficam só neste aparelho. Com conta, eles continuam com você se trocar de celular ou reinstalar o app.'
+                : 'Entre para trazer de volta o que você já tinha salvo.'}</p>
             </div>
+            ${criando && checagens ? `<div class="notice notice-care">${icon('history')}<div class="notice-body"><strong>${checagens} ${checagens === 1 ? 'checagem guardada' : 'checagens guardadas'} neste aparelho</strong><span>Elas continuam iguais depois que a conta for criada. Nada é reenviado nem apagado.</span></div></div>` : ''}
             <div class="field">
               <label class="field-label" for="email">E-mail</label>
               <input class="input" id="email" type="email" autocomplete="email" inputmode="email" placeholder="voce@email.com" aria-describedby="email-err">
@@ -466,8 +485,10 @@
               <span class="field-help" id="password-help">Pelo menos 8 caracteres.</span>
               <div id="password-err"></div>
             </div>
-            <button class="btn btn-primary btn-block" type="submit">Criar conta</button>
-            <p class="small muted">Já tem conta? <a href="#" data-action="signin">Entrar</a></p>
+            <button class="btn btn-primary btn-block" type="submit">${criando ? 'Criar conta' : 'Entrar'}</button>
+            <p class="small muted">${criando
+              ? 'Já tem conta? <a href="#" data-action="entrar">Entrar</a>'
+              : 'Ainda não tem conta? <a href="#" data-action="criar-conta">Criar agora</a>'}</p>
           </form>
         </main>
       </div>`;
@@ -608,6 +629,10 @@
               </div>
             </section>
 
+            ${S.profile ? '' : `<button class="row" data-go="invite" style="border-bottom:0">
+              <span class="row-main"><span class="row-title"><strong>Quer que eu leve sua saúde em conta?</strong></span><span class="small muted">Se você tem alguma condição, eu aviso quando uma dica da internet não serve para você.</span></span>${icon('chevron-right', 'class="chev"')}
+            </button>`}
+
             ${S.installDismissed ? '' : `<section class="install" aria-labelledby="install-title">
               <div class="install-head">${icon('smartphone')}<div><h2 class="h3" id="install-title">Instale na tela inicial</h2><p class="small muted">No Android, o Claudinho aparece no botão Compartilhar do Instagram e do TikTok.</p></div><button class="icon-btn" data-action="dismiss-install" aria-label="Dispensar convite">${icon('x')}</button></div>
               <details><summary>Como instalar</summary>
@@ -721,6 +746,7 @@
         <main class="scroll">
           <div class="stack">
             ${items.length ? `<p class="small muted screen-title" tabindex="-1">Suas checagens ficam salvas só neste aparelho.</p>
+              ${!S.conta && !S.contaDispensada && items.length >= 3 ? `<div class="notice notice-care">${icon('cloud-upload')}<div class="notice-body"><strong>Quer guardar essas checagens?</strong><span>Com uma conta elas continuam com você se trocar de celular ou reinstalar o app. Leva um e-mail e uma senha.</span><div class="notice-actions"><button class="btn btn-primary btn-sm" data-action="criar-conta" data-voltar="history">Criar conta</button><button class="btn btn-ghost btn-sm" data-action="dispensar-conta">Agora não</button></div></div></div>` : ''}
               <div class="rows">${items.map((h, i) => {
                 const r = RESULTS[h.key];
                 const q = r.input.type === 'url' ? r.input.excerpt : r.input.type === 'image' ? r.input.ocr : r.input.text;
@@ -767,6 +793,23 @@
                 <p class="lede">Preenchendo, eu aviso quando uma informação da internet não combina com a sua condição.</p>
                 <button class="btn btn-primary btn-block" data-go="profileEdit">Preencher perfil</button>
               </section>`}
+
+            <section class="stack-sm" aria-labelledby="tema-titulo">
+              <h2 class="h3" id="tema-titulo">Aparência</h2>
+              <div class="chips" role="radiogroup" aria-labelledby="tema-titulo">
+                ${[['auto', 'Automático', 'smartphone'], ['light', 'Claro', 'sun'], ['dark', 'Escuro', 'moon']]
+                  .map(([v, l, ic]) => `<label class="chip"><input type="radio" name="tema" value="${v}" ${S.tema === v ? 'checked' : ''}>${icon(ic)}${l}</label>`).join('')}
+              </div>
+              <p class="caption">No automático, o app segue o tema do seu celular.</p>
+            </section>
+
+            <section class="stack-sm" aria-labelledby="conta-titulo">
+              <h2 class="h3" id="conta-titulo">Sua conta</h2>
+              ${S.conta
+                ? `<div class="rows"><div class="row"><span class="row-main"><span class="row-title">${esc(S.conta.email)}</span><span class="small muted">Suas checagens e seu perfil acompanham você em qualquer aparelho.</span></span>${icon('circle-check', 'class="chev"')}</div></div>
+                   <button class="btn btn-ghost" data-action="sair">${icon('log-out')}Sair da conta</button>`
+                : `<div class="notice">${icon('smartphone')}<div class="notice-body"><strong>Você está usando sem conta</strong><span>Tudo que você checou e o seu perfil ficam guardados só neste aparelho. Se desinstalar o app ou trocar de celular, isso se perde.</span><div class="notice-actions"><button class="btn btn-secondary btn-sm" data-action="criar-conta" data-voltar="profile">Criar conta</button><button class="btn btn-ghost btn-sm" data-action="entrar">Já tenho conta</button></div></div></div>`}
+            </section>
 
             <section class="stack-sm" aria-labelledby="priv">
               <h2 class="h3" id="priv">Privacidade</h2>
@@ -842,6 +885,14 @@
       </div>${extra}`;
   }
 
+  /* ---------- Tema ---------- */
+  function aplicarTema() {
+    // No automatico tiramos o atributo e deixamos o prefers-color-scheme decidir, que e
+    // o mesmo caminho do celular quando o usuario nao escolheu nada.
+    if (S.tema === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', S.tema);
+  }
+
   /* ---------- Render ---------- */
   function paintIcons() { if (window.lucide) window.lucide.createIcons(); }
   function render(focus = true) {
@@ -872,7 +923,7 @@
       const cb = document.getElementById('agree'), btn = document.getElementById('agree-btn');
       if (cb) cb.addEventListener('change', () => { btn.disabled = !cb.checked; });
     },
-    signup() {
+    conta() {
       document.getElementById('signup-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const email = document.getElementById('email'), pw = document.getElementById('password');
@@ -882,7 +933,11 @@
         setFieldError(pw, 'password-err', okPw ? '' : 'A senha precisa ter pelo menos 8 caracteres.');
         if (!okEmail) return email.focus();
         if (!okPw) return pw.focus();
-        go('invite');
+        const criando = S.modoConta === 'criar';
+        S.conta = { email: email.value };
+        store.set('conta', S.conta);
+        go('profile');
+        toast(criando ? 'Conta criada. Suas checagens continuam aqui.' : 'Você entrou na sua conta');
       });
     },
     profileEdit() {
@@ -927,6 +982,13 @@
       if (S.error?.code === 'rate_limited') startCountdown();
     },
     profile() {
+      phone.querySelectorAll('[name="tema"]').forEach((opcao) => {
+        opcao.addEventListener('change', () => {
+          S.tema = opcao.value;
+          store.set('tema', S.tema);
+          aplicarTema();
+        });
+      });
       document.getElementById('sim-offline').addEventListener('change', (e) => { S.sim.offline = e.target.checked; toast(e.target.checked ? 'Sem internet simulado. Veja a tela Checar.' : 'Conexão de volta'); });
       document.getElementById('sim-upstream').addEventListener('change', (e) => { S.sim.upstream = e.target.checked; toast(e.target.checked ? 'A próxima checagem vai falhar' : 'Serviço normal'); });
     },
@@ -1030,8 +1092,11 @@
 
   /* ---------- Ações ---------- */
   const ACTIONS = {
-    agree() { go('signup'); },
-    signin(el, e) { e.preventDefault(); go('home'); toast('Você entrou na sua conta'); },
+    agree() { go('home'); toast('Pode perguntar. Nada de cadastro por enquanto.'); },
+    'criar-conta'(el, e) { e?.preventDefault(); S.modoConta = 'criar'; S.voltarPara = el?.dataset.voltar || 'profile'; go('conta'); },
+    entrar(el, e) { e?.preventDefault(); S.modoConta = 'entrar'; S.voltarPara = 'welcome'; go('conta'); },
+    'dispensar-conta'() { S.contaDispensada = true; store.set('contaDispensada', true); render(false); },
+    sair() { S.conta = null; store.set('conta', null); render(false); toast('Você saiu. O que está neste aparelho continua aqui.'); },
     'skip-profile'() { go('home'); },
     check() { S.error = null; checkFromDraft(); },
     example(el) { const k = el.dataset.key; startCheck(k, { ...RESULTS[k].input }); },
@@ -1088,7 +1153,9 @@
     'review-terms'() { S.reviewTerms = true; go('welcome'); },
     restart() {
       S.profile = null; S.history = []; S.installDismissed = false; S.draft = { text: '', image: null };
+      S.conta = null; S.contaDispensada = false;
       store.set('profile', null); store.set('history', []); store.set('installDismissed', false);
+      store.set('conta', null); store.set('contaDispensada', false);
       S.reviewTerms = false; go('welcome');
     },
   };
@@ -1110,7 +1177,7 @@
       if (arg === 'upstream') { S.sim.upstream = true; S.goKey = target; return startCheck('cafe', { ...RESULTS.cafe.input }); }
       return go('home', target);
     }
-    if (['welcome', 'signup', 'invite', 'blocked'].includes(kind)) S.sim.offline = false;
+    if (['welcome', 'conta', 'invite', 'blocked'].includes(kind)) S.sim.offline = false;
     go(kind, target);
   }
 
@@ -1123,6 +1190,7 @@
   window.addEventListener('online', () => S.screen === 'home' && render(false));
   window.addEventListener('offline', () => S.screen === 'home' && render(false));
 
+  aplicarTema();
   const deepLink = decodeURIComponent(location.hash.slice(1));
   if (deepLink) handleGo(deepLink); else render(false);
 })();
