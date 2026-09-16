@@ -30,6 +30,32 @@ Este diretório concentra as diretrizes de arquitetura de software, deploy, moni
 
 ---
 
+## ⚙️ O que já está implementado na API
+
+O código vive em `APP/`. O `/check-claim` ainda responde **mockado**: o contrato está congelado e o pipeline de RAG entra depois.
+
+| Item | Onde está | Status |
+| :--- | :--- | :--- |
+| Contrato REST de `/check-claim`, `/feedback` e `/profile` | `APP/schemas.py`, `APP/routers/` | ✅ Completo, com `/check-claim` mockado |
+| Autenticação por JWT do Supabase Auth | `APP/auth.py` | ✅ Valida assinatura, expiração e audiência |
+| Trava de configuração na subida | `APP/auth.py`, `APP/main.py` | ✅ Não sobe fora do local sem o segredo do JWT e sem as origens do CORS |
+| CORS para o app publicado | `APP/main.py`, `ORIGENS_PERMITIDAS` | ✅ Completo |
+| Rate limiting por identidade | `APP/ratelimit.py` | ✅ 10/min no `/check-claim` e 30/min nas escritas, aplicado antes da autenticação |
+| Log estruturado de inferência | `APP/observabilidade.py`, `APP/middleware.py` | ✅ Um registro por requisição, costurado pelo `trace_id` |
+| Consentimento LGPD para dado clínico | `APP/schemas.py` (`Profile`) | ✅ Validado na entrada, antes de persistir |
+| Persistência de feedback e perfil | `APP/repositorios/` | ⚠️ Em memória: as tabelas `feedback` e `profiles` ainda não existem no Supabase |
+| Pipeline de RAG | ainda não existe | ⛔ Próxima frente, junto com a frente de Modelo |
+| Langfuse e Sentry | ainda não existe | ⛔ Depende do pipeline estar de pé |
+
+### Próximos incrementos
+
+1. Criar as tabelas `feedback` e `profiles` no Supabase com a frente de Dados, e trocar as implementações em memória (o passo a passo está no docstring de cada repositório).
+2. Ligar o pipeline real no `/check-claim`: cache semântico, extração de claim, busca no `pgvector`, geração ancorada e *guardrails*.
+3. *Quality gate* de RAGAS no CI, quando o benchmark de 50 perguntas existir.
+4. Trocar o contador de rate limit em memória pelo Redis do Upstash quando houver mais de uma instância.
+
+---
+
 ## 📁 Estrutura de Documentos
 
 1. [**01_plataforma_e_deploy.md**](./01_plataforma_e_deploy.md)
