@@ -8,21 +8,26 @@
   /* Neutros de branco quente: cansa menos a vista que o #FFF puro */
   --c-ground: oklch(0.985 0.005 85);
   --c-surface: oklch(0.999 0.002 85);
-  --c-sunken: oklch(0.955 0.013 85);
-  --c-ink: oklch(0.33 0.03 340);
-  --c-ink-2: oklch(0.50 0.03 340);
-  --c-ink-3: oklch(0.52 0.025 340);
-  --c-line: oklch(0.91 0.012 85);
-  --c-line-strong: oklch(0.64 0.02 340);
-  --c-desk: oklch(0.94 0.012 85);
+  --c-sunken: oklch(0.955 0.012 85);
+  --c-ink: oklch(0.34 0.018 285);
+  --c-ink-2: oklch(0.50 0.02 285);
+  --c-ink-3: oklch(0.52 0.016 285);
+  --c-line: oklch(0.91 0.011 85);
+  --c-line-strong: oklch(0.64 0.015 285);
+  --c-desk: oklch(0.94 0.011 85);
 
-  /* Marca: jabuticaba clara */
-  --c-brand: oklch(0.55 0.16 330);
-  --c-brand-press: oklch(0.48 0.15 330);
-  --c-on-brand: oklch(0.99 0.005 330);
-  --c-brand-tint: oklch(0.95 0.035 330);
-  --c-focus: oklch(0.55 0.18 330);
-  --c-hero-bg: var(--c-brand-tint);
+  /* Marca: azul de checagem. A cor semantica dos vereditos e que carrega o significado,
+     entao a marca fica fora das faixas de verde, ambar e vermelho. */
+  --c-brand: oklch(0.53 0.13 250);
+  --c-brand-press: oklch(0.46 0.12 250);
+  --c-on-brand: oklch(0.99 0.004 250);
+  --c-brand-tint: oklch(0.95 0.03 250);
+  --c-focus: oklch(0.53 0.15 250);
+
+  /* Acento quente: pessego. Acolhimento e convite, nunca acao principal. */
+  --c-accent-bg: oklch(0.94 0.045 60);
+  --c-accent-ink: oklch(0.45 0.10 55);
+  --c-hero-bg: var(--c-accent-bg);
   --c-hero-ink: var(--c-ink);
   --c-hero-ink-2: var(--c-ink-2);
 
@@ -33,12 +38,12 @@
   --c-cautela-ink: oklch(0.50 0.10 70);
   --c-mito-bg: oklch(0.94 0.045 25);
   --c-mito-ink: oklch(0.52 0.16 25);
-  --c-sem-bg: oklch(0.945 0.02 250);
-  --c-sem-ink: oklch(0.47 0.05 255);
-  --c-cuidado-bg: var(--c-brand-tint);
-  --c-cuidado-ink: var(--c-brand);
+  --c-sem-bg: oklch(0.945 0.008 85);
+  --c-sem-ink: oklch(0.47 0.012 85);
+  --c-cuidado-bg: var(--c-accent-bg);
+  --c-cuidado-ink: var(--c-accent-ink);
 
-  --c-toast-bg: oklch(0.33 0.03 340);
+  --c-toast-bg: oklch(0.34 0.018 285);
   --c-toast-ink: oklch(0.985 0.005 85);
 
   /* Tipografia */
@@ -77,64 +82,68 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --c-ground: oklch(0.22 0.015 340);
-    --c-surface: oklch(0.26 0.018 340);
-    --c-sunken: oklch(0.18 0.012 340);
-    --c-ink: oklch(0.96 0.008 340);
-    --c-ink-2: oklch(0.82 0.015 340);
-    --c-ink-3: oklch(0.72 0.015 340);
-    --c-line: oklch(0.36 0.018 340);
-    --c-line-strong: oklch(0.58 0.02 340);
-    --c-desk: oklch(0.16 0.012 340);
-    --c-brand: oklch(0.82 0.11 330);
-    --c-brand-press: oklch(0.88 0.09 330);
-    --c-on-brand: oklch(0.22 0.03 330);
-    --c-brand-tint: oklch(0.34 0.06 330);
-    --c-focus: oklch(0.82 0.13 330);
-    --c-hero-bg: oklch(0.34 0.06 330);
-    --c-hero-ink: oklch(0.96 0.008 340);
-    --c-hero-ink-2: oklch(0.84 0.02 340);
+    --c-ground: oklch(0.21 0.008 285);
+    --c-surface: oklch(0.255 0.01 285);
+    --c-sunken: oklch(0.17 0.008 285);
+    --c-ink: oklch(0.96 0.005 285);
+    --c-ink-2: oklch(0.82 0.01 285);
+    --c-ink-3: oklch(0.72 0.01 285);
+    --c-line: oklch(0.36 0.012 285);
+    --c-line-strong: oklch(0.58 0.015 285);
+    --c-desk: oklch(0.15 0.008 285);
+    --c-brand: oklch(0.78 0.12 250);
+    --c-brand-press: oklch(0.85 0.10 250);
+    --c-on-brand: oklch(0.20 0.03 250);
+    --c-brand-tint: oklch(0.32 0.07 250);
+    --c-focus: oklch(0.78 0.14 250);
+    --c-accent-bg: oklch(0.33 0.05 60);
+    --c-accent-ink: oklch(0.88 0.08 60);
+    --c-hero-bg: oklch(0.33 0.05 60);
+    --c-hero-ink: oklch(0.96 0.005 285);
+    --c-hero-ink-2: oklch(0.84 0.015 285);
     --c-seguro-bg: oklch(0.33 0.05 155);
     --c-seguro-ink: oklch(0.88 0.10 155);
     --c-cautela-bg: oklch(0.34 0.06 80);
     --c-cautela-ink: oklch(0.90 0.11 85);
     --c-mito-bg: oklch(0.34 0.06 25);
     --c-mito-ink: oklch(0.88 0.08 28);
-    --c-sem-bg: oklch(0.33 0.025 255);
-    --c-sem-ink: oklch(0.88 0.03 255);
-    --c-toast-bg: oklch(0.94 0.008 340);
-    --c-toast-ink: oklch(0.24 0.02 340);
+    --c-sem-bg: oklch(0.32 0.008 85);
+    --c-sem-ink: oklch(0.87 0.012 85);
+    --c-toast-bg: oklch(0.94 0.005 285);
+    --c-toast-ink: oklch(0.24 0.012 285);
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --c-ground: oklch(0.22 0.015 340);
-  --c-surface: oklch(0.26 0.018 340);
-  --c-sunken: oklch(0.18 0.012 340);
-  --c-ink: oklch(0.96 0.008 340);
-  --c-ink-2: oklch(0.82 0.015 340);
-  --c-ink-3: oklch(0.72 0.015 340);
-  --c-line: oklch(0.36 0.018 340);
-  --c-line-strong: oklch(0.58 0.02 340);
-  --c-desk: oklch(0.16 0.012 340);
-  --c-brand: oklch(0.82 0.11 330);
-  --c-brand-press: oklch(0.88 0.09 330);
-  --c-on-brand: oklch(0.22 0.03 330);
-  --c-brand-tint: oklch(0.34 0.06 330);
-  --c-focus: oklch(0.82 0.13 330);
-  --c-hero-bg: oklch(0.34 0.06 330);
-  --c-hero-ink: oklch(0.96 0.008 340);
-  --c-hero-ink-2: oklch(0.84 0.02 340);
+  --c-ground: oklch(0.21 0.008 285);
+  --c-surface: oklch(0.255 0.01 285);
+  --c-sunken: oklch(0.17 0.008 285);
+  --c-ink: oklch(0.96 0.005 285);
+  --c-ink-2: oklch(0.82 0.01 285);
+  --c-ink-3: oklch(0.72 0.01 285);
+  --c-line: oklch(0.36 0.012 285);
+  --c-line-strong: oklch(0.58 0.015 285);
+  --c-desk: oklch(0.15 0.008 285);
+  --c-brand: oklch(0.78 0.12 250);
+  --c-brand-press: oklch(0.85 0.10 250);
+  --c-on-brand: oklch(0.20 0.03 250);
+  --c-brand-tint: oklch(0.32 0.07 250);
+  --c-focus: oklch(0.78 0.14 250);
+  --c-accent-bg: oklch(0.33 0.05 60);
+  --c-accent-ink: oklch(0.88 0.08 60);
+  --c-hero-bg: oklch(0.33 0.05 60);
+  --c-hero-ink: oklch(0.96 0.005 285);
+  --c-hero-ink-2: oklch(0.84 0.015 285);
   --c-seguro-bg: oklch(0.33 0.05 155);
   --c-seguro-ink: oklch(0.88 0.10 155);
   --c-cautela-bg: oklch(0.34 0.06 80);
   --c-cautela-ink: oklch(0.90 0.11 85);
   --c-mito-bg: oklch(0.34 0.06 25);
   --c-mito-ink: oklch(0.88 0.08 28);
-  --c-sem-bg: oklch(0.33 0.025 255);
-  --c-sem-ink: oklch(0.88 0.03 255);
-  --c-toast-bg: oklch(0.94 0.008 340);
-  --c-toast-ink: oklch(0.24 0.02 340);
+  --c-sem-bg: oklch(0.32 0.008 85);
+  --c-sem-ink: oklch(0.87 0.012 85);
+  --c-toast-bg: oklch(0.94 0.005 285);
+  --c-toast-ink: oklch(0.24 0.012 285);
 }
 
 /* ---------- Veredito: cada variante aponta os mesmos dois tokens ---------- */
