@@ -17,6 +17,7 @@ from APP.auth import exigir_autenticacao
 from APP.config import Settings, obter_settings
 from APP.errors import ApiError
 from APP.observabilidade import adicionar_ao_log, trace_id_atual
+from APP.ratelimit import LIMITE_CHECK_CLAIM, limitar
 from APP.schemas import CheckClaimRequest, CheckClaimResponse, Fonte
 from APP.verdict import classificar_veredito
 
@@ -82,10 +83,16 @@ def montar_resposta_mockada(requisicao: CheckClaimRequest, latency_ms: int) -> C
     )
 
 
-@router.post("/check-claim", response_model=CheckClaimResponse)
+@router.post(
+    "/check-claim",
+    response_model=CheckClaimResponse,
+    # Na lista da rota, e nao como decorador: assim o limite roda antes da autenticacao
+    # e da validacao do corpo (ver o docstring de APP/ratelimit.py).
+    dependencies=[Depends(limitar(LIMITE_CHECK_CLAIM))],
+)
 async def check_claim(
     requisicao: CheckClaimRequest,
-    _token: str = Depends(exigir_autenticacao),
+    _usuario: str = Depends(exigir_autenticacao),
     settings: Settings = Depends(obter_settings),
 ) -> CheckClaimResponse:
     inicio = time.perf_counter()

@@ -87,19 +87,20 @@ def adicionar_ao_log(**blocos: Any) -> None:
             registro[chave] = valor
 
 
-def hash_de_usuario(authorization: str | None) -> str | None:
+def hash_de_usuario(identidade: str | None) -> str | None:
     """Identificador estavel do usuario, nunca o valor em claro.
 
     Docs/Production/02, secao 3.1: dado de saude e identidade nao entram no log.
-    Hoje a identidade disponivel e o token do header; quando o APP/auth.py passar
-    a validar o JWT de verdade, troque a entrada pela claim `sub` do token.
+    A entrada e a identidade resolvida pelo APP/auth.py (a claim `sub` do JWT), e nao
+    o token: o Supabase rotaciona o access token de hora em hora, entao o hash do token
+    daria um usuario diferente a cada renovacao e o log deixaria de ser agrupavel.
+
+    E o mesmo hash que o APP/ratelimit.py usa como chave, para o balde do limite e o
+    registro do log falarem do mesmo usuario.
     """
-    if not authorization or not authorization.startswith("Bearer "):
+    if not identidade:
         return None
-    token = authorization.removeprefix("Bearer ").strip()
-    if not token:
-        return None
-    return "sha256:" + hashlib.sha256(token.encode()).hexdigest()
+    return "sha256:" + hashlib.sha256(identidade.encode()).hexdigest()
 
 
 def emitir(registro: dict[str, Any]) -> None:

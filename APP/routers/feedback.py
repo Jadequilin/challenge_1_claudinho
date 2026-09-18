@@ -7,7 +7,8 @@ partir do uso real (Docs/Production/02, secao 4).
 from fastapi import APIRouter, Depends, status
 
 from APP.auth import exigir_autenticacao
-from APP.observabilidade import adicionar_ao_log
+from APP.observabilidade import adicionar_ao_log, hash_de_usuario
+from APP.ratelimit import LIMITE_ESCRITA, limitar
 from APP.repositorios.feedback import (
     Feedback,
     RepositorioDeFeedback,
@@ -21,14 +22,22 @@ router = APIRouter(prefix="/api/v1", tags=["feedback"])
 # Rota sincrona (def, nao async def) de proposito: o FastAPI roda funcoes
 # sincronas em um threadpool, entao o client sincrono do Supabase pode ser
 # chamado aqui sem travar o event loop quando o RepositorioSupabase entrar.
-@router.post("/feedback", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/feedback",
+    response_model=FeedbackResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(limitar(LIMITE_ESCRITA))],
+)
 def registrar_feedback(
     requisicao: FeedbackRequest,
-    _token: str = Depends(exigir_autenticacao),
+    usuario: str = Depends(exigir_autenticacao),
     repositorio: RepositorioDeFeedback = Depends(obter_repositorio_de_feedback),
 ) -> FeedbackResponse:
     feedback = Feedback(
         trace_id=str(requisicao.trace_id),
+        # Quem avaliou, em hash: a triagem semanal precisa saber se 30 avaliacoes
+        # negativas vieram de 30 pessoas ou de uma so (Docs/Production/02, secao 4).
+        usuario_hash=hash_de_usuario(usuario),
         rating=requisicao.rating,
         reason=requisicao.reason,
         comment=requisicao.comment,
