@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     # Limite do endpoint /check-claim para imagens (Docs/Production/01, secao 2.1).
     tamanho_maximo_imagem_bytes: int = 5 * 1024 * 1024
 
+    # Chaves opcionais de provedores de LLM
+    gemini_api_key: str | None = None
+    openai_api_key: str | None = None
+
 
 @lru_cache
 def obter_settings() -> Settings:
