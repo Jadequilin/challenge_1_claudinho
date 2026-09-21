@@ -42,15 +42,45 @@ def _settings(**extra):
 # ---------- texto ----------
 
 
-@pytest.mark.parametrize("veredito", ["desinformacao", "cautela", "seguro"])
-def test_resposta_segue_a_estrutura_da_persona(veredito):
-    linhas = montar_resposta_local(veredito, PERGUNTA, [_fonte()], {"c1": TRECHO}).split("\n")
+ABERTURAS_POSSIVEIS = {
+    "desinformacao": ("Isso é mito", "Não é bem assim", "Essa ideia circula"),
+    "cautela": ("Depende", "Não dá para dizer", "Em parte"),
+    "seguro": ("Sim, isso", "Pode confiar", "É verdade"),
+}
 
-    assert len(linhas) == 7
-    assert linhas[2] == f"Entendi assim: {PERGUNTA}"
-    assert linhas[3] == "" and linhas[5] == ""
-    assert "[Ref: c1]" in linhas[4]
-    assert linhas[6].startswith("A ciência indica que")
+
+@pytest.mark.parametrize("veredito", ["desinformacao", "cautela", "seguro"])
+def test_veredito_vem_na_primeira_frase(veredito):
+    """Docs/User/01, secao 2.2, item 1: o Lucas decide pela primeira frase se continua."""
+    texto = montar_resposta_local(veredito, PERGUNTA, [_fonte()], {"c1": TRECHO})
+
+    assert texto.startswith(ABERTURAS_POSSIVEIS[veredito])
+
+
+@pytest.mark.parametrize("veredito", ["desinformacao", "cautela", "seguro"])
+def test_titulo_do_estudo_fica_fora_do_texto(veredito):
+    """Item 3: a fonte fica na secao de fontes do app; no texto, so o [Ref: ID]."""
+    texto = montar_resposta_local(veredito, PERGUNTA, [_fonte()], {"c1": TRECHO})
+
+    assert "[Ref: c1]." in texto
+    assert "Efeitos metabólicos" not in texto
+
+
+@pytest.mark.parametrize("veredito", ["desinformacao", "cautela", "seguro"])
+def test_sem_as_marcas_do_formato_antigo(veredito):
+    texto = montar_resposta_local(veredito, PERGUNTA, [_fonte()], {"c1": TRECHO})
+
+    assert not texto.startswith("Resposta")
+    assert "Entendi assim" not in texto
+    assert "A ciência indica" not in texto
+    assert "\n" not in texto
+
+
+@pytest.mark.parametrize("veredito", ["desinformacao", "cautela", "seguro"])
+def test_resposta_e_curta(veredito):
+    texto = montar_resposta_local(veredito, PERGUNTA, [_fonte()], {"c1": TRECHO})
+
+    assert len(texto.split()) <= 110
 
 
 def test_resposta_nao_usa_emojis():
@@ -72,7 +102,7 @@ def test_sem_trechos_uteis_nao_inventa_conteudo():
 
     texto = montar_resposta_local("cautela", PERGUNTA, [fonte_vazia], {"c1": ""})
 
-    assert "não são conclusivos" in texto
+    assert "não são claros o bastante" in texto
     assert "[Ref:" not in texto
 
 

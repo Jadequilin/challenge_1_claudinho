@@ -1,20 +1,16 @@
 """Resposta local para quando nenhum provedor de LLM responde.
 
-O veredito vem do classificador de regras (`classifier.py`); este modulo so escreve
-o texto. A estrutura imita a que o prompt pede ao Gemini (Docs/Model/02 e persona
-Lucas em Docs/User/01), para o usuario nao perceber uma quebra de tom quando o
-fallback assume:
+O veredito vem do classificador de regras (`classifier.py`); este modulo so escreve o
+texto, seguindo as mesmas regras do prompt v2 (APP/model/prompts.py), que por sua vez
+seguem Docs/User/01, secao 2.2 (o que o Lucas espera de uma resposta):
 
-    Linha 1: titulo de tom
-    Linha 2: frase de acolhimento/conclusao
-    Linha 3: "Entendi assim: <pergunta>"
-    (branco)
-    Paragrafo explicativo citando os trechos com [Ref: ID]
-    (branco)
-    Conclusao iniciando com "A ciencia indica que..."
+1. o veredito vem na primeira frase;
+2. linguagem de conversa;
+3. a fonte fica na secao de fontes do app, nao no meio do texto (so o [Ref: ID]);
+4. nenhum julgamento.
 
-Nada aqui inventa conteudo: o paragrafo explicativo so reproduz trechos que vieram
-da base, que e o mesmo principio de grounding estrito do gerador com LLM.
+Nada aqui inventa conteudo: a explicacao so reproduz trechos que vieram da base, que e
+o mesmo principio de grounding estrito do gerador com LLM.
 """
 
 import hashlib
@@ -22,56 +18,41 @@ import re
 
 from APP.schemas import Fonte
 
-MODEL_VERSION = "fallback-local@classifier-v1"
-TAMANHO_MAXIMO_TRECHO = 360
-MAXIMO_DE_FONTES_CITADAS = 2
+MODEL_VERSION = "fallback-local@classifier-v2"
+TAMANHO_MAXIMO_TRECHO = 300
 
-TITULOS = {
-    "desinformacao": "Resposta sobre o mito",
-    "cautela": "Resposta com ressalvas",
-    "seguro": "Resposta informativa",
-}
-
-# Variacoes para a mesma pergunta nao receber sempre a mesma frase de abertura.
-ACOLHIMENTOS = {
+# Veredito na primeira frase. Tres variacoes por veredito, para a mesma resposta nao se
+# repetir em todas as perguntas.
+ABERTURAS = {
     "desinformacao": (
-        "Essa ideia circula bastante, mas os estudos não confirmam o que ela promete.",
-        "É uma dúvida muito comum, e vale olhar com calma: a evidência não sustenta essa promessa.",
-        "Faz sentido desconfiar, porque essa afirmação não se sustenta nos estudos que temos.",
+        "Isso é mito.",
+        "Não é bem assim: os estudos não confirmam essa ideia.",
+        "Essa ideia circula bastante, mas não se confirma.",
     ),
     "cautela": (
-        "Essa pergunta não tem uma resposta única: depende bastante de cada pessoa.",
-        "Aqui a resposta é 'depende', e vale entender os porquês antes de mudar qualquer hábito.",
-        "Boa pergunta. A evidência existe, mas vem com ressalvas importantes.",
+        "Depende.",
+        "Não dá para dizer sim ou não para todo mundo.",
+        "Em parte, e o detalhe faz diferença.",
     ),
     "seguro": (
-        "Boa notícia: isso tem respaldo nos estudos.",
-        "Pode ficar tranquilo, essa informação é confirmada pela evidência disponível.",
-        "Sim, e é bom saber que isso tem base científica.",
+        "Sim, isso é verdade.",
+        "Pode confiar: isso tem respaldo.",
+        "É verdade, e os estudos confirmam.",
     ),
 }
 
-CONCLUSOES = {
+# Fechamentos que servem tanto para mito do tipo "X emagrece" quanto "X faz mal". Para
+# "seguro" nao ha fechamento: o risco de uma frase generica soar errada e maior que o
+# ganho (ex.: "pode seguir sem culpa" depois de "acucar em excesso faz mal").
+FECHAMENTOS = {
     "desinformacao": (
-        "A ciência indica que não existem atalhos milagrosos: resultados consistentes vêm "
-        "de uma alimentação equilibrada ao longo do tempo. Se o objetivo é emagrecer ou "
-        "melhorar a saúde, um nutricionista pode montar um plano que funcione para você."
+        "Na dúvida, desconfie de posts que prometem resultado rápido ou que culpam um "
+        "alimento sozinho."
     ),
     "cautela": (
-        "A ciência indica que essa prática pode fazer sentido para algumas pessoas e não "
-        "para outras. Antes de adotar, vale conversar com um nutricionista ou médico, que "
-        "pode avaliar a sua situação específica."
+        "Como o efeito muda de pessoa para pessoa, vale conversar com um nutricionista antes "
+        "de mudar a sua rotina."
     ),
-    "seguro": (
-        "A ciência indica que esse é um caminho confiável. Manter hábitos assim, dentro de "
-        "uma rotina equilibrada, costuma trazer bons resultados."
-    ),
-}
-
-INTRODUCOES_DE_EVIDENCIA = {
-    "desinformacao": "O que os estudos da nossa base mostram é diferente.",
-    "cautela": "Os estudos da nossa base trazem pontos que ajudam a pesar isso.",
-    "seguro": "Os estudos da nossa base apoiam essa informação.",
 }
 
 
@@ -81,35 +62,26 @@ def montar_resposta_local(
     fontes: list[Fonte],
     trechos_por_chunk: dict[str, str],
 ) -> str:
-    """Monta o texto da resposta no formato da persona, ancorado nos trechos."""
-    tom = veredito if veredito in TITULOS else "cautela"
+    """Monta a resposta: veredito, o que um estudo registrou [Ref], e fechamento."""
+    tom = veredito if veredito in ABERTURAS else "cautela"
 
-    linhas = [
-        TITULOS[tom],
-        _escolher(ACOLHIMENTOS[tom], pergunta),
-        f"Entendi assim: {pergunta.strip()}",
-        "",
-        _paragrafo_de_evidencias(tom, fontes, trechos_por_chunk),
-        "",
-        CONCLUSOES[tom],
-    ]
-    return "\n".join(linhas)
+    partes = [_escolher(ABERTURAS[tom], pergunta), _evidencia(fontes, trechos_por_chunk)]
+    if tom in FECHAMENTOS:
+        partes.append(FECHAMENTOS[tom])
+    return " ".join(p for p in partes if p)
 
 
-def _paragrafo_de_evidencias(tom: str, fontes: list[Fonte], trechos: dict[str, str]) -> str:
-    citacoes = []
-    for fonte in fontes[:MAXIMO_DE_FONTES_CITADAS]:
+def _evidencia(fontes: list[Fonte], trechos: dict[str, str]) -> str:
+    """Primeira fonte com trecho aproveitavel, citada so pelo ID (o titulo fica no app)."""
+    for fonte in fontes:
         trecho = resumir_trecho(trechos.get(fonte.chunk_id) or fonte.excerpt)
-        if not trecho:
-            continue
-        citacoes.append(f"O estudo “{fonte.title}” traz que {trecho} [Ref: {fonte.chunk_id}]")
-
-    if not citacoes:
-        return (
-            "Encontrei estudos relacionados na nossa base, mas os trechos não são "
-            "conclusivos o bastante para detalhar aqui."
-        )
-    return " ".join([INTRODUCOES_DE_EVIDENCIA[tom], *citacoes])
+        if trecho:
+            # A referencia entra antes do ponto final: "... em si [Ref: c1]."
+            corpo = trecho[:-1] if trecho.endswith(".") and not trecho.endswith("...") else trecho
+            return f"Um estudo sobre o tema registrou que {corpo} [Ref: {fonte.chunk_id}]."
+    return (
+        "Encontramos estudos relacionados, mas os trechos não são claros o bastante para detalhar."
+    )
 
 
 def resumir_trecho(texto: str | None) -> str:
