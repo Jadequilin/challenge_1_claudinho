@@ -158,9 +158,11 @@ def test_cadeia_so_tem_o_que_foi_configurado():
     assert [p.nome for p in provedores_configurados(_settings(gemini_api_key="k"))] == ["gemini"]
 
 
-def test_gerador_devolve_503_quando_nenhum_provedor_responde(monkeypatch):
-    from APP.errors import ApiError
+def test_gerador_usa_o_fallback_local_quando_nenhum_provedor_responde(monkeypatch):
+    """Antes devolvia 503. Decisao do grupo: sem LLM, o classificador decide o veredito
+    e a resposta e montada com os trechos recuperados (APP/model/resposta_local.py)."""
     from APP.model import generator
+    from APP.model.resposta_local import MODEL_VERSION
     from APP.schemas import Fonte
 
     def falhar(*_args, **_kwargs):
@@ -177,13 +179,13 @@ def test_gerador_devolve_503_quando_nenhum_provedor_responde(monkeypatch):
         excerpt="e",
     )
 
-    with pytest.raises(ApiError) as erro:
-        generator.gerar_resposta_grounded(
-            "alegacao",
-            [fonte],
-            [{"chunk_id": "c1", "titulo": "t", "conteudo": "e"}],
-            _settings(llm_base_url="https://proprio.hf.space/v1"),
-        )
+    resposta, _score, veredito, modelo, _versao = generator.gerar_resposta_grounded(
+        "alegacao",
+        [fonte],
+        [{"chunk_id": "c1", "titulo": "t", "conteudo": "e"}],
+        _settings(llm_base_url="https://proprio.hf.space/v1"),
+    )
 
-    assert erro.value.status_code == 503
-    assert erro.value.codigo == "generation_unavailable"
+    assert modelo == MODEL_VERSION
+    assert veredito in {"seguro", "cautela", "desinformacao"}
+    assert resposta.startswith("Resposta")

@@ -13,8 +13,10 @@ import logging
 from typing import Literal
 
 from APP.config import Settings
-from APP.errors import ApiError
+from APP.model.classifier import calcular_risco_evidencia
 from APP.model.llm import GeracaoIndisponivel, gerar_json, provedores_configurados
+from APP.model.resposta_local import MODEL_VERSION as MODEL_VERSION_LOCAL
+from APP.model.resposta_local import montar_resposta_local
 from APP.model.retriever import formatar_contexto_cientifico
 from APP.schemas import Fonte
 from APP.verdict import classificar_veredito
@@ -131,11 +133,26 @@ def gerar_resposta_grounded(
         answer = str(resposta_llm["answer"])
         score = max(0.0, min(1.0, float(resposta_llm.get("risk_score", 0.5))))
     except (GeracaoIndisponivel, KeyError, TypeError, ValueError) as erro:
-        logger.error("Geracao indisponivel: %s", erro)
-        raise ApiError(
-            "generation_unavailable",
-            503,
-            "Serviço de IA generativa indisponível no momento. Tente novamente em instantes.",
-        ) from erro
+        # Nenhum provedor respondeu (Space dormindo, cota esgotada, timeout). Em vez de
+        # devolver 503, o classificador de regras decide o veredito e a resposta e
+        # montada a partir dos proprios trechos recuperados. E local: nao envia nada
+        # para fora, entao vale tambem quando `dados_sensiveis` e True.
+        logger.warning("Geracao indisponivel, usando fallback local: %s", erro)
+        return _responder_localmente(alegacao_canonica, fontes, raw_chunks, pergunta_exibicao)
 
     return answer, score, classificar_veredito(score), provedor.versao, prompt_version
+
+
+def _responder_localmente(
+    alegacao: str,
+    fontes: list[Fonte],
+    raw_chunks: list[dict[str, object]],
+    pergunta: str,
+) -> tuple[str, float, str, str, str]:
+    score, _ = calcular_risco_evidencia(alegacao, fontes, raw_chunks)
+    # O veredito sai dos mesmos limiares 0.35 / 0.65 do resto da API (APP/verdict.py),
+    # e nao da string devolvida pelo classificador, para haver uma unica fonte da regra.
+    veredito = classificar_veredito(score)
+    trechos = {str(c.get("chunk_id", "")): str(c.get("conteudo") or "") for c in raw_chunks}
+    resposta = montar_resposta_local(veredito, pergunta, fontes, trechos)
+    return resposta, score, veredito, MODEL_VERSION_LOCAL, "fallback-template-v1"
