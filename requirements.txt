@@ -7,3 +7,7 @@ pydantic-settings==2.7.0
 python-dotenv==1.0.1
 supabase==2.31.0
 sentence-transformers==6.0.1
+# Rate limiting por identidade (Docs/Production/03, secao 2.2)
+limits==5.7.0
+# Validacao do JWT do Supabase Auth (chega junto do supabase, fixado por ser uso direto)
+PyJWT==2.13.0

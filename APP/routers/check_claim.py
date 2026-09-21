@@ -37,7 +37,7 @@ def _validar_tamanho_da_imagem(image_base64: str | None, settings: Settings) -> 
 @router.post("/check-claim", response_model=CheckClaimResponse)
 async def check_claim(
     requisicao: CheckClaimRequest,
-    _token: str = Depends(exigir_autenticacao),
+    _usuario: str = Depends(exigir_autenticacao),
     settings: Settings = Depends(obter_settings),
 ) -> CheckClaimResponse:
     inicio = time.perf_counter()
