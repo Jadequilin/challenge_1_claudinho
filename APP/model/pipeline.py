@@ -3,8 +3,6 @@
 Documentado em Docs/Production/01_plataforma_e_deploy.md, secao 1.1.
 """
 
-from datetime import date
-
 from APP.config import Settings
 from APP.model.claim_extractor import (
     checar_recusa_segura,
@@ -17,22 +15,11 @@ from APP.model.generator import (
 )
 from APP.model.retriever import buscar_evidencias_cientificas, detectar_e_comparar_tbca
 from APP.observabilidade import adicionar_ao_log
-from APP.schemas import CheckClaimRequest, CheckClaimResponse, Fonte
+from APP.schemas import CheckClaimRequest, CheckClaimResponse
 
 DISCLAIMER_PADRAO = (
     "Esta informação não substitui a consulta com um nutricionista ou médico. "
     "Sempre consulte um profissional de saúde qualificado antes de iniciar dietas restritivas."
-)
-
-# Fonte de contingencia apenas para testes (quando supabase_url == teste.supabase.co)
-FONTE_TESTE = Fonte(
-    chunk_id="chunk_teste_01",
-    title="Efeitos metabólicos de compostos cítricos: revisão sistemática",
-    authors="Silva, R.; Almeida, C.",
-    journal="Revista de Nutrição",
-    published_at=date(2021, 6, 1),
-    doi="10.1590/xxxx-xxxx",
-    excerpt="Não foram observadas diferenças significativas no gasto energético...",
 )
 
 
@@ -103,17 +90,6 @@ def executar_pipeline_de_checagem(
 
     # 4. Recuperacao semantica no pgvector do Supabase (Data/02 e Model/02)
     fontes, raw_chunks = buscar_evidencias_cientificas(alegacao_canonica)
-
-    # Suporte hermetico para testes unitarios em ambiente sem banco real
-    if not fontes and "teste.supabase.co" in settings.supabase_url:
-        fontes = [FONTE_TESTE]
-        raw_chunks = [
-            {
-                "chunk_id": FONTE_TESTE.chunk_id,
-                "titulo": FONTE_TESTE.title,
-                "conteudo": FONTE_TESTE.excerpt,
-            }
-        ]
 
     # 4. Geracao grounded ancorada estritamente nas evidencias (Model/02)
     answer, risk_score, verdict, model_ver, prompt_ver = gerar_resposta_grounded(

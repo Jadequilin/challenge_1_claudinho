@@ -5,8 +5,6 @@ Docs/Production/02, secao 2.1: a deteccao de drift depende de `similarity_max` e
 monitoramento, por "a base nao tem estudos sobre esse tema".
 """
 
-import pytest
-
 from APP.model import retriever
 from tests.conftest import AUTH
 
@@ -51,15 +49,6 @@ class _Execucao:
 
     def execute(self):
         return _Resultado(self._data)
-
-
-@pytest.fixture(autouse=True)
-def isolamento(monkeypatch):
-    retriever.limpar_cache_de_artigos()
-    # Nao baixa o modelo de embeddings (1 GB) so para testar o log.
-    monkeypatch.setattr(retriever, "gerar_embedding_consulta", lambda _texto: [0.0] * 768)
-    yield
-    retriever.limpar_cache_de_artigos()
 
 
 def _usar(monkeypatch, supabase):

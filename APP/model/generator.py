@@ -108,16 +108,6 @@ def gerar_resposta_grounded(
     contexto_str = formatar_contexto_cientifico(raw_chunks)
     provedores = provedores_configurados(settings)
 
-    # Caso especial exclusivo para testes unitarios em ambiente CI
-    if not provedores and "teste.supabase.co" in settings.supabase_url:
-        return (
-            f"Resposta de teste para {pergunta_exibicao} [Ref: {fontes[0].chunk_id}].",
-            0.15,
-            "seguro",
-            "mock-test-generator",
-            prompt_version,
-        )
-
     prompt_usuario = (
         f"<contexto_cientifico>\n{contexto_str}\n</contexto_cientifico>\n\n"
         f"Pergunta do usuário: {pergunta_exibicao}"

@@ -9,6 +9,13 @@ import pytest
 os.environ["SUPABASE_URL"] = "https://teste.supabase.co"
 os.environ["SUPABASE_KEY"] = "chave-de-teste"
 os.environ["APP_ENV"] = "local"
+# Provedores de LLM desligados, mesmo que o .env do dev tenha chaves: variavel de
+# ambiente vence o .env. Sem isto, a suite chamaria o Gemini de verdade na maquina de
+# quem tem a chave configurada, gastando cota e ficando diferente do CI.
+os.environ["GEMINI_API_KEY"] = ""
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["LLM_BASE_URL"] = ""
+os.environ["LLM_API_KEY"] = ""
 
 import json  # noqa: E402
 import logging  # noqa: E402
@@ -21,11 +28,13 @@ from fastapi.testclient import TestClient  # noqa: E402
 from APP.auth import ALGORITMO, AUDIENCIA  # noqa: E402
 from APP.config import obter_settings  # noqa: E402
 from APP.main import app  # noqa: E402
+from APP.model import retriever  # noqa: E402
 from APP.model.database import obter_supabase  # noqa: E402
 from APP.observabilidade import LOGGER_INFERENCIA  # noqa: E402
 from APP.ratelimit import limpar as limpar_limites  # noqa: E402
 from APP.repositorios.feedback import obter_repositorio_de_feedback  # noqa: E402
 from APP.repositorios.perfil import obter_repositorio_de_perfil  # noqa: E402
+from tests._dubles import SupabaseFalso  # noqa: E402
 
 AUTH = {"Authorization": "Bearer token-de-teste"}
 
@@ -44,6 +53,23 @@ def estado_do_processo():
     limpar_estado()
     yield
     limpar_estado()
+
+
+@pytest.fixture(autouse=True)
+def base_de_teste(monkeypatch):
+    """Banco e modelo de embeddings falsos para TODA a suite.
+
+    - Nao baixa o modelo real (mais de 1 GB, a cada execucao do CI).
+    - Nao tenta conectar no Supabase: sem rede, o resultado nao depende de DNS.
+    - Por padrao a busca devolve um trecho; o teste pode trocar pedindo a fixture:
+      `base_de_teste.chunks = []` simula uma base sem estudos sobre o tema.
+    """
+    base = SupabaseFalso()
+    monkeypatch.setattr(retriever, "gerar_embedding_consulta", lambda _texto: [0.0] * 768)
+    monkeypatch.setattr(retriever, "obter_supabase", lambda: base)
+    retriever.limpar_cache_de_artigos()
+    yield base
+    retriever.limpar_cache_de_artigos()
 
 
 def limpar_estado() -> None:

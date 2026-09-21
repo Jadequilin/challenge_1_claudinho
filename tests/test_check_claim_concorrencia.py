@@ -12,7 +12,6 @@ import asyncio
 import time
 
 import httpx
-import pytest
 
 from APP.main import app
 from APP.model import pipeline as modulo_pipeline
@@ -21,21 +20,6 @@ from tests.conftest import AUTH
 
 ATRASO_S = 0.5
 CORPO = {"text": "agua com limao emagrece?"}
-
-
-@pytest.fixture(autouse=True)
-def sem_modelo_de_embeddings(monkeypatch):
-    """Evita carregar o modelo real (1 GB baixado a cada execucao do CI).
-
-    Falhar rapido leva o pipeline pelo caminho de "sem evidencia", que e o que
-    estes testes precisam: o alvo aqui e o comportamento HTTP, nao a qualidade.
-    """
-    from APP.model import retriever
-
-    def indisponivel(_texto):
-        raise RuntimeError("modelo de embeddings desligado nos testes")
-
-    monkeypatch.setattr(retriever, "gerar_embedding_consulta", indisponivel)
 
 
 def _pipeline_lento(monkeypatch):
