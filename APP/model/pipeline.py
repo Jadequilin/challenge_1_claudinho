@@ -16,6 +16,7 @@ from APP.model.generator import (
     gerar_resposta_grounded,
 )
 from APP.model.retriever import buscar_evidencias_cientificas, detectar_e_comparar_tbca
+from APP.observabilidade import adicionar_ao_log
 from APP.schemas import CheckClaimRequest, CheckClaimResponse, Fonte
 
 DISCLAIMER_PADRAO = (
@@ -47,6 +48,7 @@ def executar_pipeline_de_checagem(
 
     # 1. Checagem previa de Guardrails de Seguranca (Ethics/01 e Ethics/02)
     acionou_recusa, mensagem_recusa = checar_recusa_segura(texto_entrada, pergunta_amigavel)
+    adicionar_ao_log(guardrails={"safe_refusal": acionou_recusa})
     if acionou_recusa:
         return CheckClaimResponse(
             trace_id=trace_id,

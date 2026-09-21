@@ -4,31 +4,52 @@ Documentado em Docs/Model/02_arquitetura_nlp_rag.md e Docs/Data/02_armazenamento
 """
 
 import re
+import time
 from datetime import date, datetime
-from functools import lru_cache
 
 from APP.model.database import obter_supabase
 from APP.model.embeddings import gerar_embedding_consulta
+from APP.observabilidade import adicionar_ao_log
 from APP.schemas import Fonte
 
 SIMILARIDADE_MINIMA_PADRAO = 0.70
 LIMITE_PADRAO = 4
 
+# Abaixo disso a consulta conta como "sem cobertura" na deteccao de drift
+# (Docs/Production/02, secao 2.1). Estimativa inicial, a calibrar com uso real.
+LIMIAR_BAIXA_COBERTURA = 0.75
 
-@lru_cache(maxsize=1)
+_catalogo_de_artigos: dict[str, dict[str, object]] | None = None
+
+
 def obter_metadados_artigos() -> dict[str, dict[str, object]]:
-    """Carrega metadados de artigos em memoria para enriquecer os chunks retornados."""
-    catalogo: dict[str, dict[str, object]] = {}
+    """Carrega metadados de artigos em memoria para enriquecer os chunks retornados.
+
+    O cache so guarda consultas BEM-SUCEDIDAS. Com `lru_cache`, uma falha na primeira
+    chamada deixava o catalogo vazio em cache ate o proximo restart, e toda fonte
+    aparecia como "Autores nao informados".
+    """
+    global _catalogo_de_artigos
+    if _catalogo_de_artigos is not None:
+        return _catalogo_de_artigos
+
     try:
         supabase = obter_supabase()
         resposta = (
             supabase.table("articles").select("id, title, author, published_at, metadata").execute()
         )
-        for item in resposta.data or []:
-            catalogo[item["id"]] = item
-    except Exception:
-        pass
-    return catalogo
+    except Exception as erro:
+        adicionar_ao_log(retrieval={"erro_metadados": type(erro).__name__})
+        return {}
+
+    _catalogo_de_artigos = {item["id"]: item for item in resposta.data or []}
+    return _catalogo_de_artigos
+
+
+def limpar_cache_de_artigos() -> None:
+    """Descarta o catalogo em memoria (usado nos testes e apos nova ingestao)."""
+    global _catalogo_de_artigos
+    _catalogo_de_artigos = None
 
 
 def _extrair_data_publicacao(valor_data: str | None) -> date:
@@ -51,6 +72,7 @@ def buscar_evidencias_cientificas(
       (lista_de_fontes_validadas, dados_brutos_dos_chunks)
     """
     chunks = []
+    inicio = time.perf_counter()
     try:
         vetor_consulta = gerar_embedding_consulta(consulta)
         supabase = obter_supabase()
@@ -64,8 +86,19 @@ def buscar_evidencias_cientificas(
             },
         ).execute()
         chunks = resposta_rpc.data or []
-    except Exception:
-        chunks = []
+    except Exception as erro:
+        # A falha continua virando resposta sem evidencia, mas deixa de ser invisivel:
+        # sem este registro, "banco fora do ar" e "base sem estudos sobre o tema"
+        # ficavam indistinguiveis no monitoramento.
+        adicionar_ao_log(
+            retrieval={
+                "erro": type(erro).__name__,
+                "vector_search_ms": _ms_desde(inicio),
+            }
+        )
+        return [], []
+
+    _registrar_recuperacao(chunks, limite, inicio)
 
     if not chunks:
         return [], []
@@ -100,6 +133,32 @@ def buscar_evidencias_cientificas(
         fontes.append(fonte)
 
     return fontes, chunks
+
+
+def _ms_desde(inicio: float) -> int:
+    return int((time.perf_counter() - inicio) * 1000)
+
+
+def _registrar_recuperacao(chunks: list[dict[str, object]], limite: int, inicio: float) -> None:
+    """Grava no log as metricas de cobertura usadas na deteccao de drift.
+
+    Docs/Production/02, secao 2.1: a taxa de consultas com baixa cobertura e o sinal
+    primario de que surgiu um tema novo que a base ainda nao cobre.
+    """
+    similaridades = [
+        float(c["similaridade"]) for c in chunks if isinstance(c.get("similaridade"), int | float)
+    ]
+    maxima = max(similaridades) if similaridades else None
+    adicionar_ao_log(
+        retrieval={
+            "top_k": limite,
+            "chunks": len(chunks),
+            "chunk_ids": [str(c.get("chunk_id", "")) for c in chunks],
+            "similarity_max": round(maxima, 4) if maxima is not None else None,
+            "low_coverage": not chunks or (maxima is not None and maxima < LIMIAR_BAIXA_COBERTURA),
+            "vector_search_ms": _ms_desde(inicio),
+        }
+    )
 
 
 def formatar_contexto_cientifico(chunks: list[dict[str, object]]) -> str:
