@@ -162,7 +162,7 @@ def _registrar_recuperacao(chunks: list[dict[str, object]], limite: int, inicio:
 
 
 def formatar_contexto_cientifico(chunks: list[dict[str, object]]) -> str:
-    """Formata os chunks recuperados para insercao no bloco <contexto_cientifico> do prompt."""
+    """Formata os chunks recuperados para insercao no bloco de estudos do prompt."""
     if not chunks:
         return "Nenhum artigo cientifico encontrado na base com similaridade suficiente."
 

@@ -188,4 +188,4 @@ def test_gerador_usa_o_fallback_local_quando_nenhum_provedor_responde(monkeypatc
 
     assert modelo == MODEL_VERSION
     assert veredito in {"seguro", "cautela", "desinformacao"}
-    assert resposta.startswith("Resposta")
+    assert resposta.strip()

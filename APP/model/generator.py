@@ -13,6 +13,7 @@ import logging
 from typing import Literal
 
 from APP.config import Settings
+from APP.model import prompts
 from APP.model.classifier import calcular_risco_evidencia
 from APP.model.llm import GeracaoIndisponivel, gerar_json, provedores_configurados
 from APP.model.resposta_local import MODEL_VERSION as MODEL_VERSION_LOCAL
@@ -23,38 +24,16 @@ from APP.verdict import classificar_veredito
 
 logger = logging.getLogger("gerador_rag")
 
-PROMPT_SISTEMA_RAG = """Você é um assistente de nutrição acolhedor e protetivo (Persona Lucas).
-Seu papel é responder de forma direta, humana, empática e personalizada, desmistificando mitos
-ou esclarecendo dúvidas nutricionais sem qualquer julgamento ou culpabilização.
 
-DIRETRIZES FUNDAMENTAIS:
-1. Baseie sua resposta EXCLUSIVAMENTE nos dados e fragmentos em <contexto_cientifico>.
-2. NUNCA invente referências, autores, anos ou números que não estejam no texto.
-3. Se a informação não constar nos fragmentos, declare ausência de evidências suficientes.
-4. Mantenha tom empático, direto, compreensivo e acolhedor (sem frieza acadêmica).
-5. Sempre cite o ID do fragmento no formato [Ref: ID_CHUNK] ao apoiar afirmações ou números.
-6. NUNCA use emojis nem símbolos gráficos decorativos. Responda em português limpo e direto.
-
-ESTRUTURA OBRIGATÓRIA DA RESPOSTA ("answer"):
-- Linha 1: Título de tom (ex: "Resposta informativa", "Resposta sobre o mito").
-- Linha 2: Frase humana e direta de acolhimento, conclusão ou resumo da dúvida.
-- Linha 3: "Entendi assim: <pergunta reformulada de forma simples e natural>"
-- Linha 4 em branco.
-- Parágrafo empático e explicativo: Valide a dúvida, contextualize e cite [Ref: ID_CHUNK].
-- Linha em branco.
-- Parágrafo final: Conclusão construtiva iniciando com "A ciência indica que...".
-
-CALIBRAÇÃO DO RISK_SCORE (Grau de risco ou desinformação da alegação avaliada):
-- 0.00 a 0.34 (seguro): Fatos confirmados, comparações nutricionais (TBCA), alimentos seguros.
-- 0.35 a 0.65 (cautela): Práticas controversas, restrições com ressalvas, conduta clínica.
-- 0.66 a 1.00 (desinformacao): Mitos nutricionais refutados, promessas de secar rápido.
-
-Responda ESTRITAMENTE em formato JSON com a seguinte estrutura:
-{
-  "answer": "Texto humanizado completo conforme a estrutura acima",
-  "risk_score": 0.85 // Ex: 0.10 para fato/TBCA, 0.50 para cautela, 0.85 para mito/desinformação
-}
-"""
+# Sem estudos na base nao ha o que citar, entao nao ha LLM: o texto e fixo. Segue as
+# mesmas regras do prompt v2 (Docs/User/01, secao 2.2): resposta primeiro, conversa,
+# franqueza sobre o limite da base, e nenhum sermao.
+RESPOSTA_SEM_EVIDENCIA = (
+    "Ainda não temos estudos sobre isso, então não dá para confirmar nem descartar. "
+    "Enquanto isso, desconfie de posts que prometem resultado rápido ou que culpam um "
+    "alimento sozinho, porque é assim que a maioria dos mitos circula. Se a dúvida tem a ver "
+    "com a sua saúde, um nutricionista ou médico pode olhar o seu caso."
+)
 
 
 def _definir_nivel_risco(score: float) -> Literal["baixo", "medio", "alto"]:
@@ -81,21 +60,12 @@ def gerar_resposta_grounded(
     Retorna tupla:
       (answer, risk_score, verdict, model_version, prompt_version)
     """
-    prompt_version = "rag-v1.0"
+    prompt_version, prompt_sistema, tag_estudos = prompts.ativo()
     pergunta_exibicao = pergunta_amigavel or alegacao_canonica
 
     # Caso 1: Nenhuma fonte recuperada na base
     if not fontes or not raw_chunks:
-        answer = (
-            f"Resposta de orientação\n"
-            f"Ainda não temos estudos científicos na nossa base para confirmar essa alegação.\n"
-            f"Entendi assim: {pergunta_exibicao}\n\n"
-            f"Compreendo a curiosidade diante de informações nas redes sociais, "
-            f"mas práticas sem comprovação científica podem não entregar os resultados esperados "
-            f"e gerar frustração.\n\n"
-            f"A ciência indica que manter escolhas equilibradas e consultar um nutricionista "
-            f"ou médico é sempre a conduta mais segura e confiável."
-        )
+        answer = RESPOSTA_SEM_EVIDENCIA
         score = 0.50
         return (
             answer,
@@ -109,12 +79,12 @@ def gerar_resposta_grounded(
     provedores = provedores_configurados(settings)
 
     prompt_usuario = (
-        f"<contexto_cientifico>\n{contexto_str}\n</contexto_cientifico>\n\n"
+        f"<{tag_estudos}>\n{contexto_str}\n</{tag_estudos}>\n\n"
         f"Pergunta do usuário: {pergunta_exibicao}"
     )
     try:
         resposta_llm, provedor = gerar_json(
-            PROMPT_SISTEMA_RAG,
+            prompt_sistema,
             prompt_usuario,
             provedores,
             dados_sensiveis=dados_sensiveis,
