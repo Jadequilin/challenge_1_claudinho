@@ -13,3 +13,7 @@ limits==5.7.0
 httpx==0.28.1
 # Validacao do JWT do Supabase Auth (chega junto do supabase, fixado por ser uso direto)
 PyJWT==2.13.0
+# Treino do classificador de risco (APP/model/train.py). Ja chegavam de carona pelo
+# sentence-transformers; fixados aqui por serem uso direto.
+scikit-learn==1.9.1
+joblib==1.6.0
