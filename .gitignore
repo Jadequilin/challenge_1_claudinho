@@ -18,3 +18,5 @@ venv/
 
 # SO
 .DS_Store
+
+uv.lock
