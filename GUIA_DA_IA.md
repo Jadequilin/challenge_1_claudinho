@@ -32,9 +32,10 @@ flowchart TD
     H --> I{Evidencias cientificas encontradas?}
     I -->|Nao| J[Veredito: sem_evidencia]
     I -->|Sim| K[Contexto Cientifico Formatado]
-    F --> L{Chave do Gemini configurada?}
+    F --> L[Geracao com LLM: Ollama proprio]
     K --> L
-    L -->|Sim| M[Geracao Generativa com LLM: Gemini 3.5 Flash Lite]
+    L -->|Falha ou tempo esgotado| M[Reserva externa: Gemini / OpenAI]
+    L --> O
     M --> O[Contrato JSON Final: Resposta, Fontes, Veredito e Risco]
     D --> O
     J --> O
@@ -68,9 +69,11 @@ flowchart TD
   2. Uma consulta por similaridade de cosseno é executada no Supabase contra a tabela `chunks` (1.480 fragmentos de artigos científicos).
   3. Se nenhum fragmento alcançar similaridade suficiente, o pipeline interrompe a geração e declara `sem_evidencia`, impedindo alucinações.
 
-#### Camada 5: Geração Grounded com Gemini
-- **Arquivo:** `APP/model/generator.py` (`gerar_resposta_grounded` e `_chamar_gemini`)
-- **Modelo:** Google Gemini (`gemini-3.5-flash-lite`, com contingência para `gemini-3.1-flash-lite`).
+#### Camada 5: Geração Grounded com LLM
+- **Arquivos:** `APP/model/generator.py` (`gerar_resposta_grounded`) e `APP/model/llm.py` (cliente único).
+- **Modelo principal:** `qwen2.5:3b`, servido pelo Ollama em um Hugging Face Space do time (`deploy/ollama-space/`).
+- **Reservas:** Gemini e OpenAI, tentados nessa ordem só quando o modelo próprio falha ou passa de `LLM_TIMEOUT_S`. Dado de saúde nunca vai para uma reserva externa (LGPD).
+- **Um cliente só:** todos os provedores falam a API de chat da OpenAI, então trocar de provedor é mudar o `.env`. O `model_version` da resposta diz qual respondeu (ex.: `ollama/qwen2.5:3b`).
 - **Engenharia de Prompt:**
   - O modelo recebe um System Prompt estrito determinando o tom da Persona Lucas.
   - O conteúdo é delimitado pela tag `<contexto_cientifico>`, contendo os fragmentos ou os dados da TBCA.
@@ -147,7 +150,12 @@ SUPABASE_URL="https://sua-url.supabase.co"
 SUPABASE_KEY="sua-chave-supabase"
 APP_ENV="local"
 
-# Chave do Google AI Studio (permite geracao inteligente e personalizada)
+# LLM proprio (ver deploy/ollama-space/README.md)
+LLM_BASE_URL="https://usuario-claudinho-llm.hf.space/v1"
+LLM_MODELO="qwen2.5:3b"
+LLM_API_KEY="hf_..."
+
+# Reserva externa, usada so quando o LLM proprio falha
 GEMINI_API_KEY="AIzaSy..."
 
 # Opcional (se for usar OpenAI)
@@ -228,7 +236,7 @@ curl -X POST "http://localhost:8000/api/v1/check-claim" \
   "disclaimer": "Esta informação não substitui a consulta com um nutricionista ou médico. Sempre consulte um profissional de saúde qualificado antes de iniciar dietas restritivas.",
   "cached": false,
   "latency_ms": 2078,
-  "model_version": "gemini-3.5-flash-lite",
+  "model_version": "ollama/qwen2.5:3b",
   "prompt_version": "rag-v1.0"
 }
 ```
@@ -260,7 +268,8 @@ O projeto conta com uma bateria de testes unitários e de integração hermétic
 │   │   ├── claim_extractor.py    # Guardrails de etica e normalizacao de claims
 │   │   ├── classifier.py         # Classificador supervisionado de risco
 │   │   ├── embeddings.py         # Geracao de vetores com multilingual-e5-base
-│   │   ├── generator.py          # Geracao generativa com Gemini e persona Lucas
+│   │   ├── generator.py          # Geracao ancorada com a persona Lucas
+│   │   ├── llm.py                # Cliente unico de LLM: Ollama proprio + reservas
 │   │   ├── pipeline.py           # Orquestrador ponta a ponta do RAG
 │   │   ├── retriever.py          # Busca vetorial no pgvector e consulta TBCA
 │   │   ├── train.py              # Script de treinamento do classificador local

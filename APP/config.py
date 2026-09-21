@@ -22,9 +22,20 @@ class Settings(BaseSettings):
     # Limite do endpoint /check-claim para imagens (Docs/Production/01, secao 2.1).
     tamanho_maximo_imagem_bytes: int = 5 * 1024 * 1024
 
-    # Chaves opcionais de provedores de LLM
+    # LLM proprio (Ollama no Hugging Face Spaces), tentado antes dos externos.
+    # Ver APP/model/llm.py e deploy/ollama-space/README.md.
+    llm_base_url: str | None = None
+    llm_modelo: str = "qwen2.5:3b"
+    # Token do Hugging Face quando o Space e privado.
+    llm_api_key: str | None = None
+    # Modelo de 3B em CPU gratuita leva de 20 a 60 s por resposta.
+    llm_timeout_s: float = 90.0
+
+    # Provedores externos de reserva, na ordem em que sao tentados.
     gemini_api_key: str | None = None
+    gemini_modelo: str = "gemini-3.5-flash-lite"
     openai_api_key: str | None = None
+    openai_modelo: str = "gpt-4o-mini"
 
 
 @lru_cache

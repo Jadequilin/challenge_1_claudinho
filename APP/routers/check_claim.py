@@ -17,6 +17,7 @@ from APP.config import Settings, obter_settings
 from APP.errors import ApiError
 from APP.model.pipeline import executar_pipeline_de_checagem
 from APP.observabilidade import adicionar_ao_log, trace_id_atual
+from APP.ratelimit import LIMITE_CHECK_CLAIM, limitar
 from APP.schemas import CheckClaimRequest, CheckClaimResponse
 
 router = APIRouter(prefix="/api/v1", tags=["checagem"])
@@ -34,8 +35,17 @@ def _validar_tamanho_da_imagem(image_base64: str | None, settings: Settings) -> 
         raise ApiError("payload_too_large", 413)
 
 
-@router.post("/check-claim", response_model=CheckClaimResponse)
-async def check_claim(
+# Rota sincrona (def, nao async def) de proposito: embeddings e LLM bloqueiam por
+# segundos, e o FastAPI roda funcao sincrona em um threadpool. Como async, a espera
+# pelo Ollama travaria o event loop e a API inteira, /health incluido.
+@router.post(
+    "/check-claim",
+    response_model=CheckClaimResponse,
+    # Na lista da rota, e nao como decorador: assim o limite roda antes da autenticacao
+    # e da validacao do corpo (ver o docstring de APP/ratelimit.py).
+    dependencies=[Depends(limitar(LIMITE_CHECK_CLAIM))],
+)
+def check_claim(
     requisicao: CheckClaimRequest,
     _usuario: str = Depends(exigir_autenticacao),
     settings: Settings = Depends(obter_settings),
@@ -44,9 +54,10 @@ async def check_claim(
     adicionar_ao_log(input=_descrever_entrada(requisicao))
 
     _validar_tamanho_da_imagem(requisicao.image_base64, settings)
-    decorrido_ms = int((time.perf_counter() - inicio) * 1000)
     trace_id = trace_id_atual() or str(uuid.uuid4())
-    resposta = executar_pipeline_de_checagem(requisicao, settings, decorrido_ms, trace_id)
+    resposta = executar_pipeline_de_checagem(requisicao, settings, 0, trace_id)
+    # Medido depois do pipeline: e o tempo do LLM que se quer comparar entre provedores.
+    resposta.latency_ms = int((time.perf_counter() - inicio) * 1000)
 
     adicionar_ao_log(
         output={
@@ -56,7 +67,6 @@ async def check_claim(
         },
         # Sem as versoes no registro nao da para atribuir uma queda de qualidade
         # a mudanca que a causou (Docs/Production/02, secoes 2.3 e 3.1).
-        # input_tokens, output_tokens e cost_usd entram quando houver LLM de fato.
         generation={
             "model_version": resposta.model_version,
             "prompt_version": resposta.prompt_version,
