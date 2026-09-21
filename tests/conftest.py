@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from APP.auth import ALGORITMO, AUDIENCIA  # noqa: E402
 from APP.config import obter_settings  # noqa: E402
 from APP.main import app  # noqa: E402
+from APP.model.database import obter_supabase  # noqa: E402
 from APP.observabilidade import LOGGER_INFERENCIA  # noqa: E402
 from APP.ratelimit import limpar as limpar_limites  # noqa: E402
 from APP.repositorios.feedback import obter_repositorio_de_feedback  # noqa: E402
@@ -49,6 +50,9 @@ def limpar_estado() -> None:
     limpar_limites()
     obter_repositorio_de_feedback().limpar()
     obter_repositorio_de_perfil().limpar()
+    # O pipeline cria o client do Supabase ao buscar evidencias; sem limpar, o teste que
+    # confere que o import nao cria client passa a depender da ordem da suite.
+    obter_supabase.cache_clear()
 
 
 @pytest.fixture

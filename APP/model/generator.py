@@ -1,4 +1,7 @@
-"""Gerador grounded com suporte a LLM (Gemini/OpenAI) com ancoragem estrita (Strict Grounding).
+"""Gerador grounded com ancoragem estrita (Strict Grounding).
+
+O LLM e chamado por APP/model/llm.py, que tenta o modelo proprio (Ollama) antes dos
+provedores externos.
 
 Documentado em:
 - Docs/Model/02_arquitetura_nlp_rag.md (Strict Grounding e System Prompt)
@@ -6,13 +9,12 @@ Documentado em:
 - Docs/Model/01_metricas_e_avaliacao.md (Limiares de decisao e calibracao)
 """
 
-import json
 import logging
 from typing import Literal
 
-import httpx
-
 from APP.config import Settings
+from APP.errors import ApiError
+from APP.model.llm import GeracaoIndisponivel, gerar_json, provedores_configurados
 from APP.model.retriever import formatar_contexto_cientifico
 from APP.schemas import Fonte
 from APP.verdict import classificar_veredito
@@ -67,8 +69,12 @@ def gerar_resposta_grounded(
     raw_chunks: list[dict[str, object]],
     settings: Settings,
     pergunta_amigavel: str = "",
+    dados_sensiveis: bool = False,
 ) -> tuple[str, float, str, str, str]:
     """Gera a resposta ancorada nos chunks científicos em tom humano e acolhedor.
+
+    `dados_sensiveis` deve ser True quando o perfil de saude entrar no prompt: assim a
+    geracao fica restrita ao modelo proprio (ver APP/model/llm.py).
 
     Retorna tupla:
       (answer, risk_score, verdict, model_version, prompt_version)
@@ -98,44 +104,10 @@ def gerar_resposta_grounded(
         )
 
     contexto_str = formatar_contexto_cientifico(raw_chunks)
-
-    # Caso 2: Provedor Google Gemini configurado
-    if settings.gemini_api_key:
-        try:
-            res_gemini = _chamar_gemini(pergunta_exibicao, contexto_str, settings.gemini_api_key)
-            if res_gemini:
-                resposta_llm, modelo_usado = res_gemini
-                score = max(0.0, min(1.0, float(resposta_llm.get("risk_score", 0.15))))
-                veredito = classificar_veredito(score)
-                return (
-                    str(resposta_llm.get("answer")),
-                    score,
-                    veredito,
-                    modelo_usado,
-                    prompt_version,
-                )
-        except Exception as e:
-            logger.warning(f"Falha na chamada a IA, usando fallback: {e}")
-
-    # Caso 3: Provedor OpenAI configurado
-    if settings.openai_api_key:
-        try:
-            resposta_llm = _chamar_openai(pergunta_exibicao, contexto_str, settings.openai_api_key)
-            if resposta_llm:
-                score = max(0.0, min(1.0, float(resposta_llm.get("risk_score", 0.5))))
-                veredito = classificar_veredito(score)
-                return (
-                    str(resposta_llm.get("answer")),
-                    score,
-                    veredito,
-                    "gpt-4o-mini",
-                    prompt_version,
-                )
-        except Exception as e:
-            logger.error(f"Falha na chamada a OpenAI: {e}")
+    provedores = provedores_configurados(settings)
 
     # Caso especial exclusivo para testes unitarios em ambiente CI
-    if "teste.supabase.co" in settings.supabase_url and not settings.gemini_api_key:
+    if not provedores and "teste.supabase.co" in settings.supabase_url:
         return (
             f"Resposta de teste para {pergunta_exibicao} [Ref: {fontes[0].chunk_id}].",
             0.15,
@@ -144,76 +116,26 @@ def gerar_resposta_grounded(
             prompt_version,
         )
 
-    # Fallback local desativado: exigir provedor generativo operacional
-    from APP.errors import ApiError
-
-    raise ApiError(
-        codigo="generation_unavailable",
-        status_code=503,
-        detail=(
-            "Serviço de IA generativa (Gemini) indisponível ou não configurado. "
-            "O fallback local determinístico foi desativado conforme diretriz arquitetural."
-        ),
-    )
-
-
-def _chamar_gemini(
-    pergunta: str, contexto: str, api_key: str
-) -> tuple[dict[str, object], str] | None:
-    prompt_completo = (
-        f"{PROMPT_SISTEMA_RAG}\n\n"
-        f"<contexto_cientifico>\n{contexto}\n</contexto_cientifico>\n\n"
-        f"Pergunta do usuário: {pergunta}"
-    )
-    payload = {
-        "contents": [{"parts": [{"text": prompt_completo}]}],
-        "generationConfig": {"response_mime_type": "application/json"},
-    }
-
-    modelos = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-latest"]
-    for modelo in modelos:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-        try:
-            with httpx.Client(timeout=25.0) as client:
-                resp = client.post(url, json=payload)
-                if resp.status_code == 200:
-                    dados = resp.json()
-                    texto_gerado = dados["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    if texto_gerado.startswith("```json"):
-                        texto_gerado = texto_gerado[7:]
-                    if texto_gerado.startswith("```"):
-                        texto_gerado = texto_gerado[3:]
-                    if texto_gerado.endswith("```"):
-                        texto_gerado = texto_gerado[:-3]
-                    texto_gerado = texto_gerado.strip()
-                    return json.loads(texto_gerado), modelo
-                logger.warning(f"Gemini modelo {modelo} retornou status {resp.status_code}")
-        except Exception as e:
-            logger.warning(f"Erro ao chamar Gemini {modelo}: {e}")
-
-    return None
-
-
-def _chamar_openai(pergunta: str, contexto: str, api_key: str) -> dict[str, object] | None:
-    url = "https://api.openai.com/v1/chat/completions"
     prompt_usuario = (
-        f"<contexto_cientifico>\n{contexto}\n</contexto_cientifico>\n\n"
-        f"Pergunta do usuário: {pergunta}"
+        f"<contexto_cientifico>\n{contexto_str}\n</contexto_cientifico>\n\n"
+        f"Pergunta do usuário: {pergunta_exibicao}"
     )
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "system", "content": PROMPT_SISTEMA_RAG},
-            {"role": "user", "content": prompt_usuario},
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.1,
-    }
-    headers = {"Authorization": f"Bearer {api_key}"}
+    try:
+        resposta_llm, provedor = gerar_json(
+            PROMPT_SISTEMA_RAG,
+            prompt_usuario,
+            provedores,
+            dados_sensiveis=dados_sensiveis,
+        )
+        # Fora do try, uma resposta sem "answer" viraria a string "None" na tela do app.
+        answer = str(resposta_llm["answer"])
+        score = max(0.0, min(1.0, float(resposta_llm.get("risk_score", 0.5))))
+    except (GeracaoIndisponivel, KeyError, TypeError, ValueError) as erro:
+        logger.error("Geracao indisponivel: %s", erro)
+        raise ApiError(
+            "generation_unavailable",
+            503,
+            "Serviço de IA generativa indisponível no momento. Tente novamente em instantes.",
+        ) from erro
 
-    with httpx.Client(timeout=15.0) as client:
-        resp = client.post(url, headers=headers, json=payload)
-        resp.raise_for_status()
-        dados = resp.json()
-        texto_gerado = dados["choices"][0]["message"]["content"]
-        return json.loads(texto_gerado)
+    return answer, score, classificar_veredito(score), provedor.versao, prompt_version
