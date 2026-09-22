@@ -4,6 +4,8 @@ Documentado em Docs/Production/01_plataforma_e_deploy.md, secao 1.1.
 """
 
 from APP.config import Settings
+from APP.errors import ApiError
+from APP.model import disclaimers
 from APP.model.claim_extractor import (
     checar_recusa_segura,
     normalizar_alegacao_heuristica,
@@ -13,14 +15,13 @@ from APP.model.generator import (
     _definir_nivel_risco,
     gerar_resposta_grounded,
 )
-from APP.model.retriever import buscar_evidencias_cientificas, detectar_e_comparar_tbca
+from APP.model.retriever import (
+    RecuperacaoIndisponivel,
+    buscar_evidencias_cientificas,
+    detectar_e_comparar_tbca,
+)
 from APP.observabilidade import adicionar_ao_log
 from APP.schemas import CheckClaimRequest, CheckClaimResponse
-
-DISCLAIMER_PADRAO = (
-    "Esta informação não substitui a consulta com um nutricionista ou médico. "
-    "Sempre consulte um profissional de saúde qualificado antes de iniciar dietas restritivas."
-)
 
 
 def executar_pipeline_de_checagem(
@@ -32,6 +33,25 @@ def executar_pipeline_de_checagem(
     """Executa o fluxo completo do pipeline RAG anti-alucinacao."""
     texto_entrada = requisicao.text or requisicao.url or "Analise de imagem recebida via upload"
     pergunta_amigavel = reformular_pergunta_amigavel(texto_entrada)
+
+    # 0. Menor de 18 anos: recusa de servico (Docs/Ethics/02, LGPD Art. 14). Vem antes de
+    # tudo: nao ha checagem a oferecer, nem mesmo a resposta de cuidado dos guardrails.
+    if disclaimers.e_menor_de_idade(texto_entrada):
+        adicionar_ao_log(guardrails={"restricao_de_idade": True})
+        return CheckClaimResponse(
+            trace_id=trace_id,
+            canonical_claim=pergunta_amigavel,
+            verdict="recusa_segura",
+            risk_score=1.0,
+            risk_level="alto",
+            answer=disclaimers.MENOR_DE_IDADE,
+            sources=[],
+            disclaimer=disclaimers.CURTO,
+            cached=False,
+            latency_ms=latency_ms,
+            model_version="guardrail@ethics-v1",
+            prompt_version="restricao-de-idade-v1",
+        )
 
     # 1. Checagem previa de Guardrails de Seguranca (Ethics/01 e Ethics/02)
     acionou_recusa, mensagem_recusa = checar_recusa_segura(texto_entrada, pergunta_amigavel)
@@ -45,7 +65,7 @@ def executar_pipeline_de_checagem(
             risk_level="alto",
             answer=mensagem_recusa,
             sources=[],
-            disclaimer=DISCLAIMER_PADRAO,
+            disclaimer=disclaimers.montar_disclaimer("recusa_segura", texto_entrada),
             cached=False,
             latency_ms=latency_ms,
             model_version="guardrail@ethics-v1",
@@ -81,7 +101,7 @@ def executar_pipeline_de_checagem(
             risk_level=_definir_nivel_risco(risk_score),
             answer=answer,
             sources=fontes_tbca,
-            disclaimer=DISCLAIMER_PADRAO,
+            disclaimer=disclaimers.montar_disclaimer(verdict, texto_entrada),
             cached=False,
             latency_ms=latency_ms,
             model_version=model_ver,
@@ -89,7 +109,15 @@ def executar_pipeline_de_checagem(
         )
 
     # 4. Recuperacao semantica no pgvector do Supabase (Data/02 e Model/02)
-    fontes, raw_chunks = buscar_evidencias_cientificas(alegacao_canonica)
+    try:
+        fontes, raw_chunks = buscar_evidencias_cientificas(alegacao_canonica)
+    except RecuperacaoIndisponivel as erro:
+        # Contrato da API (Docs/Production/01, secao 2.1): 503 upstream_unavailable.
+        raise ApiError(
+            "upstream_unavailable",
+            503,
+            "A busca de estudos está indisponível no momento. Tente de novo em instantes.",
+        ) from erro
 
     # 4. Geracao grounded ancorada estritamente nas evidencias (Model/02)
     answer, risk_score, verdict, model_ver, prompt_ver = gerar_resposta_grounded(
@@ -108,7 +136,7 @@ def executar_pipeline_de_checagem(
         risk_level=_definir_nivel_risco(risk_score),
         answer=answer,
         sources=fontes,
-        disclaimer=DISCLAIMER_PADRAO,
+        disclaimer=disclaimers.montar_disclaimer(verdict, texto_entrada),
         cached=False,
         latency_ms=latency_ms,
         model_version=model_ver,

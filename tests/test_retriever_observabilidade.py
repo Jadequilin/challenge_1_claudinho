@@ -60,7 +60,9 @@ def test_falha_do_supabase_fica_registrada_no_log(client, monkeypatch, registros
 
     resposta = client.post(ROTA, headers=AUTH, json=CORPO)
 
-    assert resposta.status_code == 200
+    # Falha de infraestrutura vira 503, e nao "sem evidencia", que seria uma resposta falsa.
+    assert resposta.status_code == 503
+    assert resposta.json()["error"] == "upstream_unavailable"
     assert registros_de_log[-1]["retrieval"]["erro"] == "ConnectionError"
 
 

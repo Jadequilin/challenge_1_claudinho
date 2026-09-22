@@ -22,6 +22,10 @@ LIMIAR_BAIXA_COBERTURA = 0.75
 _catalogo_de_artigos: dict[str, dict[str, object]] | None = None
 
 
+class RecuperacaoIndisponivel(RuntimeError):
+    """A busca vetorial nao pode ser feita (banco ou servico de embeddings indisponivel)."""
+
+
 def obter_metadados_artigos() -> dict[str, dict[str, object]]:
     """Carrega metadados de artigos em memoria para enriquecer os chunks retornados.
 
@@ -87,16 +91,16 @@ def buscar_evidencias_cientificas(
         ).execute()
         chunks = resposta_rpc.data or []
     except Exception as erro:
-        # A falha continua virando resposta sem evidencia, mas deixa de ser invisivel:
-        # sem este registro, "banco fora do ar" e "base sem estudos sobre o tema"
-        # ficavam indistinguiveis no monitoramento.
+        # Falha de infraestrutura (banco fora do ar, Space de embeddings dormindo) NAO e
+        # "a base nao tem estudos sobre isso". Responder "sem evidencia" nesse caso seria
+        # dizer ao usuario algo falso; o pipeline transforma isto em 503.
         adicionar_ao_log(
             retrieval={
                 "erro": type(erro).__name__,
                 "vector_search_ms": _ms_desde(inicio),
             }
         )
-        return [], []
+        raise RecuperacaoIndisponivel(type(erro).__name__) from erro
 
     _registrar_recuperacao(chunks, limite, inicio)
 
