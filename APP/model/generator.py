@@ -106,6 +106,20 @@ def gerar_resposta_grounded(
 
 
 _REFERENCIA = re.compile(r"\[Ref:\s*([^\]]+)\]")
+# O modelo as vezes repete o rotulo dentro da citacao ("[Ref: Ref: abc]" ou
+# "[Ref: ID_CHUNK: abc]"). O ID e real; so a formatacao veio torta. Sem tirar o rotulo,
+# a resposta era rejeitada como se citasse um estudo inventado.
+_ROTULO = re.compile(r"^(?:\s*(?:ref|id_chunk|id)\s*:\s*)+", re.IGNORECASE)
+
+
+def ids_citados(texto: str) -> set[str]:
+    """IDs citados em [Ref: ...], sem rotulos repetidos. Aceita varios IDs separados por virgula."""
+    ids = (
+        _ROTULO.sub("", parte).strip()
+        for grupo in _REFERENCIA.findall(texto)
+        for parte in grupo.split(",")
+    )
+    return {i for i in ids if i}
 
 
 def _validar_resposta(answer: object, raw_chunks: list[dict[str, object]]) -> str:
@@ -122,7 +136,7 @@ def _validar_resposta(answer: object, raw_chunks: list[dict[str, object]]) -> st
         raise ValueError("resposta vazia da LLM")
 
     recuperados = {str(c.get("chunk_id", "")) for c in raw_chunks}
-    citados = {ref.strip() for grupo in _REFERENCIA.findall(answer) for ref in grupo.split(",")}
+    citados = ids_citados(answer)
     inventados = citados - recuperados
     if inventados:
         adicionar_ao_log(

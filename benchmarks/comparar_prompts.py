@@ -19,6 +19,7 @@ from statistics import mean
 
 from APP.config import obter_settings
 from APP.model import prompts
+from APP.model.generator import ids_citados
 from APP.model.pipeline import executar_pipeline_de_checagem
 from APP.model.resposta_local import MODEL_VERSION as MODELO_FALLBACK
 from APP.schemas import CheckClaimRequest
@@ -33,7 +34,8 @@ ABERTURAS_CLICHE = ("Olá", "Ótima pergunta", "Compreendo", "Entendo sua")
 
 def analisar(resposta: str, ids_recuperados: set[str]) -> dict:
     """Sinais automaticos de resposta robotica ou sem base (Docs/User/01, secao 2.2)."""
-    citados = set(re.findall(r"\[Ref:\s*([^\]]+)\]", resposta))
+    # Mesma regra da validacao em producao: "[Ref: Ref: abc]" cita o estudo "abc".
+    citados = ids_citados(resposta)
     # Os IDs dentro de [Ref: ...] costumam conter "chunk": procurar vazamento neles daria
     # alarme falso em toda resposta que cita fonte.
     sem_refs = re.sub(r"\[Ref:[^\]]*\]", "", resposta).lower()

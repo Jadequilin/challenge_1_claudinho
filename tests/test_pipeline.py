@@ -168,3 +168,21 @@ def test_resposta_vazia_ou_que_nao_e_texto_cai_no_fallback(llm_falsa, vazia):
 
     assert resposta.answer.strip()
     assert resposta.model_version == MODELO_FALLBACK
+
+
+def test_citacao_com_rotulo_repetido_e_aceita(llm_falsa):
+    """Caso real (benchmark de 22/09): o modelo escreveu "[Ref: Ref: <id>]" com um ID que
+    existia, e a resposta foi rejeitada como fonte inventada, caindo no fallback."""
+    real = CHUNK_PADRAO["chunk_id"]
+    for citacao in (f"[Ref: Ref: {real}]", f"[Ref: ID_CHUNK: {real}]", f"[Ref: ref: {real}]"):
+        llm_falsa.resposta = {"answer": f"Isso e mito {citacao}.", "risk_score": 0.8}
+
+        resposta = _checar("Agua com limao emagrece?")
+
+        assert resposta.model_version == PROVEDOR_FALSO.versao, citacao
+
+
+def test_rotulo_repetido_nao_disfarca_fonte_inventada(llm_falsa):
+    llm_falsa.resposta = {"answer": "Isso e mito [Ref: Ref: inventado].", "risk_score": 0.8}
+
+    assert _checar("Agua com limao emagrece?").model_version == MODELO_FALLBACK
