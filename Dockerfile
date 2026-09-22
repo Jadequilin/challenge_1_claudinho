@@ -7,11 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# torch so de CPU, antes do requirements: a versao padrao do PyPI traz CUDA (3+ GB de
-# bibliotecas NVIDIA) e deixaria a imagem com varios GB sem nenhum ganho, ja que o
-# servidor nao tem GPU. Camada propria: so e refeita se esta linha mudar.
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
 # Dependencias primeiro: essa camada so e reconstruida quando o requirements muda.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

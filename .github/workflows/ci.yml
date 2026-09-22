@@ -26,12 +26,6 @@ jobs:
           python-version-file: .python-version
           cache: pip
 
-      # O torch do PyPI para Linux vem com CUDA: 3+ GB de bibliotecas NVIDIA que nao
-      # servem num runner sem GPU. Instalado antes, o build de CPU satisfaz a exigencia
-      # do sentence-transformers e o requirements nao baixa a versao com CUDA.
-      - name: Instalar torch (somente CPU)
-        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
-
       - name: Instalar dependencias
         run: pip install -r requirements-dev.txt
 
