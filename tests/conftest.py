@@ -16,6 +16,13 @@ os.environ["GEMINI_API_KEY"] = ""
 os.environ["OPENAI_API_KEY"] = ""
 os.environ["LLM_BASE_URL"] = ""
 os.environ["LLM_API_KEY"] = ""
+# Mesma logica para autenticacao e embeddings: com o SUPABASE_JWT_SECRET de verdade no .env,
+# o modo local (que aceita o token de teste) desligaria e toda a suite viraria 401; com a
+# EMBEDDINGS_URL, a suite chamaria o Hugging Face e gastaria a cota gratuita.
+os.environ["SUPABASE_JWT_SECRET"] = ""
+os.environ["EMBEDDINGS_URL"] = ""
+os.environ["EMBEDDINGS_TOKEN"] = ""
+os.environ["ORIGENS_PERMITIDAS"] = "[]"
 
 import json  # noqa: E402
 import logging  # noqa: E402
