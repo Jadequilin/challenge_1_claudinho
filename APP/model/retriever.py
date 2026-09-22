@@ -97,6 +97,9 @@ def buscar_evidencias_cientificas(
         adicionar_ao_log(
             retrieval={
                 "erro": type(erro).__name__,
+                # Ex.: "HTTP 402" e a cota mensal do Hugging Face esgotada; sem isso, o log
+                # so diria que os embeddings falharam, sem dizer por que.
+                "detalhe": str(erro)[:80],
                 "vector_search_ms": _ms_desde(inicio),
             }
         )

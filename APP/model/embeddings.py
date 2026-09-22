@@ -4,9 +4,13 @@ Documentado em Docs/Model/02_arquitetura_nlp_rag.md e Docs/Data/02_armazenamento
 
 Dois modos, escolhidos pela configuracao:
 
-- **Remoto** (`EMBEDDINGS_URL` definida): chama o servico de deploy/embeddings-space. E o
-  modo de producao. A API nao carrega o modelo nem importa o torch, entao fica leve o
-  bastante para a Vercel (limite de 500 MB por funcao) e para o Render gratuito (512 MB).
+- **Remoto** (`EMBEDDINGS_URL` definida): e o modo de producao. A API nao carrega o modelo
+  nem importa o torch, entao fica leve o bastante para a Vercel (limite de 500 MB por
+  funcao) e para o Render gratuito (512 MB). Dois provedores:
+  - `hf-inference` (padrao): a API de inferencia do Hugging Face roda o modelo. Nao exige
+    Space nem conta paga, mas conta gratuita tem cota mensal pequena e sem excedente: se
+    acabar, as chamadas param ate o mes virar.
+  - `space`: o servico proprio de deploy/embeddings-space (criar Space Docker exige PRO).
 - **Local** (sem `EMBEDDINGS_URL`): carrega o modelo no proprio processo. So para
   desenvolvimento; exige `requirements-ml.txt`.
 
@@ -57,18 +61,35 @@ def _remoto(texto: str, settings) -> list[float]:
     cabecalhos = {}
     if settings.embeddings_token:
         cabecalhos["Authorization"] = f"Bearer {settings.embeddings_token}"
+
+    if settings.embeddings_provedor == "space":
+        url = f"{settings.embeddings_url.rstrip('/')}/embed"
+        corpo = {"textos": [texto]}
+    else:
+        # A URL ja e a do pipeline: .../models/<modelo>/pipeline/feature-extraction
+        url = settings.embeddings_url
+        corpo = {"inputs": texto, "normalize": True}
+
     try:
         with httpx.Client(timeout=settings.embeddings_timeout_s) as cliente:
-            resposta = cliente.post(
-                f"{settings.embeddings_url.rstrip('/')}/embed",
-                json={"textos": [texto]},
-                headers=cabecalhos,
-            )
+            resposta = cliente.post(url, json=corpo, headers=cabecalhos)
             resposta.raise_for_status()
-            return [float(x) for x in resposta.json()["vetores"][0]]
-    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as erro:
-        # A mensagem so leva o tipo do erro: a URL poderia carregar dados da requisicao.
+            dados = resposta.json()
+    except httpx.HTTPStatusError as erro:
+        # 402 = cota mensal do Hugging Face esgotada; 401/403 = token sem permissao.
+        # O codigo vai para o log; a URL nao, porque pode carregar dados da requisicao.
+        raise EmbeddingsIndisponiveis(f"HTTP {erro.response.status_code}") from erro
+    except (httpx.HTTPError, ValueError) as erro:
         raise EmbeddingsIndisponiveis(type(erro).__name__) from erro
+
+    try:
+        vetor = dados["vetores"][0] if settings.embeddings_provedor == "space" else dados
+        # O hf-inference devolve [..768..] para um texto, ou [[..768..]] em algumas versoes.
+        if vetor and isinstance(vetor[0], list):
+            vetor = vetor[0]
+        return [float(x) for x in vetor]
+    except (KeyError, IndexError, TypeError, ValueError) as erro:
+        raise EmbeddingsIndisponiveis(f"resposta inesperada: {type(erro).__name__}") from erro
 
 
 def _local(texto: str) -> list[float]:

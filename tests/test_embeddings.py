@@ -1,11 +1,12 @@
-"""Cliente de embeddings (APP/model/embeddings.py) e contrato com o Space.
+"""Cliente de embeddings (APP/model/embeddings.py).
 
-O objetivo do modo remoto e deixar a API leve para a Vercel e o Render gratuito. Estes
-testes garantem que ela continua leve, que o cliente fala o mesmo contrato que o servico
-de deploy/embeddings-space, e que falha do servico vira 503, nao "sem evidencia".
+O modo remoto existe para a API ficar leve na Vercel e no Render gratuito. Estes testes
+garantem que ela continua leve, que o cliente fala o formato de cada provedor
+(API do Hugging Face e Space proprio), e que falha do provedor vira 503, nao "sem evidencia".
 """
 
 import importlib.util
+import json
 import os
 import subprocess
 import sys
@@ -20,34 +21,47 @@ from APP.model import embeddings, retriever
 from tests.conftest import AUTH
 
 RAIZ = Path(__file__).resolve().parents[1]
-URL = "https://usuario-embeddings.hf.space"
+URL_HF = (
+    "https://router.huggingface.co/hf-inference/models/"
+    "intfloat/multilingual-e5-base/pipeline/feature-extraction"
+)
+URL_SPACE = "https://usuario-embeddings.hf.space"
 
 
-def _settings(**extra):
-    base = {"supabase_url": "https://x.supabase.co", "supabase_key": "x", "embeddings_url": URL}
+def _settings(provedor="hf-inference", **extra):
+    base = {
+        "supabase_url": "https://x.supabase.co",
+        "supabase_key": "x",
+        "embeddings_url": URL_HF if provedor == "hf-inference" else URL_SPACE,
+        "embeddings_provedor": provedor,
+    }
     return Settings(**{**base, **extra})
 
 
 @pytest.fixture
-def servico(monkeypatch):
-    """Servico remoto falso: registra o que recebeu e responde o que o teste mandar."""
-    estado = {"pedidos": [], "resposta": lambda textos: {"vetores": [[0.1] * 768 for _ in textos]}}
+def provedor_falso(monkeypatch):
+    """Provedor remoto falso: registra o pedido e responde o que o teste mandar."""
+    estado = {"pedidos": [], "resposta": [0.1] * 768}
 
     def responder(pedido: httpx.Request) -> httpx.Response:
-        corpo = __import__("json").loads(pedido.content)
-        estado["pedidos"].append({"url": str(pedido.url), "headers": pedido.headers, **corpo})
-        resposta = estado["resposta"](corpo["textos"])
+        estado["pedidos"].append(
+            {"url": str(pedido.url), "headers": pedido.headers, "corpo": json.loads(pedido.content)}
+        )
+        resposta = estado["resposta"]
         if isinstance(resposta, httpx.Response):
             return resposta
         return httpx.Response(200, json=resposta)
 
-    transporte = httpx.MockTransport(responder)
     original = httpx.Client
-
+    transporte = httpx.MockTransport(responder)
     monkeypatch.setattr(
         embeddings.httpx, "Client", lambda **kw: original(transport=transporte, **kw)
     )
     return estado
+
+
+def _usar(monkeypatch, **kwargs):
+    monkeypatch.setattr(embeddings, "obter_settings", lambda: _settings(**kwargs))
 
 
 def test_importar_o_cliente_nao_puxa_o_torch():
@@ -60,66 +74,105 @@ def test_importar_o_cliente_nao_puxa_o_torch():
     # rede (WinError 10106). So as credenciais obrigatorias sao sobrescritas.
     ambiente = {**os.environ, "SUPABASE_URL": "x", "SUPABASE_KEY": "x"}
     saida = subprocess.run(
-        [sys.executable, "-c", codigo],
-        cwd=RAIZ,
-        capture_output=True,
-        text=True,
-        env=ambiente,
+        [sys.executable, "-c", codigo], cwd=RAIZ, capture_output=True, text=True, env=ambiente
     )
 
-    # Sem check=True: se o subprocesso quebrar, a mensagem mostra o erro dele, e nao so
-    # "exit status 1".
     assert saida.returncode == 0, saida.stderr
     assert saida.stdout.strip() == "False"
 
 
-def test_modo_remoto_manda_o_prefixo_e5_e_o_token(monkeypatch, servico):
-    monkeypatch.setattr(embeddings, "obter_settings", lambda: _settings(embeddings_token="hf_x"))
+# ---------- API de inferencia do Hugging Face (padrao) ----------
+
+
+def test_hf_inference_manda_o_formato_da_api(monkeypatch, provedor_falso):
+    _usar(monkeypatch, embeddings_token="hf_x")
 
     vetor = embeddings.gerar_embedding_consulta("agua com limao emagrece?")
 
-    pedido = servico["pedidos"][0]
+    pedido = provedor_falso["pedidos"][0]
     assert len(vetor) == 768
-    assert pedido["url"] == f"{URL}/embed"
-    assert pedido["textos"] == ["query: agua com limao emagrece?"]
+    assert pedido["url"] == URL_HF
+    assert pedido["corpo"] == {"inputs": "query: agua com limao emagrece?", "normalize": True}
     assert pedido["headers"]["authorization"] == "Bearer hf_x"
 
 
-def test_prefixo_nao_e_duplicado(monkeypatch, servico):
-    monkeypatch.setattr(embeddings, "obter_settings", _settings)
+def test_hf_inference_aceita_resposta_aninhada(monkeypatch, provedor_falso):
+    """Algumas versoes da API devolvem [[...]] em vez de [...] para um unico texto."""
+    _usar(monkeypatch)
+    provedor_falso["resposta"] = [[0.2] * 768]
+
+    assert embeddings.gerar_embedding_consulta("ovo") == [0.2] * 768
+
+
+def test_cota_esgotada_aparece_no_motivo_do_erro(monkeypatch, provedor_falso):
+    """HTTP 402 = cota mensal gratuita do Hugging Face acabou. O log precisa dizer isso."""
+    _usar(monkeypatch)
+    provedor_falso["resposta"] = httpx.Response(402)
+
+    with pytest.raises(embeddings.EmbeddingsIndisponiveis, match="HTTP 402"):
+        embeddings.gerar_embedding_consulta("ovo")
+
+
+# ---------- Space proprio ----------
+
+
+def test_space_manda_o_formato_do_servico(monkeypatch, provedor_falso):
+    _usar(monkeypatch, provedor="space")
+    provedor_falso["resposta"] = {"vetores": [[0.1] * 768]}
+
+    embeddings.gerar_embedding_consulta("ovo")
+
+    pedido = provedor_falso["pedidos"][0]
+    assert pedido["url"] == f"{URL_SPACE}/embed"
+    assert pedido["corpo"] == {"textos": ["query: ovo"]}
+
+
+# ---------- regras comuns aos dois provedores ----------
+
+
+@pytest.mark.parametrize("provedor", ["hf-inference", "space"])
+def test_prefixo_nao_e_duplicado(monkeypatch, provedor_falso, provedor):
+    _usar(monkeypatch, provedor=provedor)
+    if provedor == "space":
+        provedor_falso["resposta"] = {"vetores": [[0.1] * 768]}
 
     embeddings.gerar_embedding_consulta("query: ja formatado")
 
-    assert servico["pedidos"][0]["textos"] == ["query: ja formatado"]
+    corpo = provedor_falso["pedidos"][0]["corpo"]
+    assert (corpo.get("inputs") or corpo["textos"][0]) == "query: ja formatado"
 
 
-def test_vetor_de_outra_dimensao_e_recusado(monkeypatch, servico):
-    """Outro modelo no Space (ex.: e5-large, 1024) quebraria a busca no pgvector."""
-    monkeypatch.setattr(embeddings, "obter_settings", _settings)
-    servico["resposta"] = lambda textos: {"vetores": [[0.1] * 1024]}
+@pytest.mark.parametrize("provedor", ["hf-inference", "space"])
+def test_vetor_de_outra_dimensao_e_recusado(monkeypatch, provedor_falso, provedor):
+    """Outro modelo (ex.: e5-large, 1024) quebraria a busca no pgvector."""
+    _usar(monkeypatch, provedor=provedor)
+    provedor_falso["resposta"] = (
+        [0.1] * 1024 if provedor == "hf-inference" else {"vetores": [[0.1] * 1024]}
+    )
 
     with pytest.raises(embeddings.EmbeddingsIndisponiveis, match="1024"):
         embeddings.gerar_embedding_consulta("ovo")
 
 
+@pytest.mark.parametrize("provedor", ["hf-inference", "space"])
 @pytest.mark.parametrize(
     "falha",
     [httpx.Response(503), httpx.Response(200, json={"outra": "coisa"})],
-    ids=["space-dormindo", "resposta-sem-vetores"],
+    ids=["fora-do-ar", "resposta-sem-vetor"],
 )
-def test_falha_do_servico_vira_erro_de_embeddings(monkeypatch, servico, falha):
-    monkeypatch.setattr(embeddings, "obter_settings", _settings)
-    servico["resposta"] = lambda textos: falha
+def test_falha_do_provedor_vira_erro_de_embeddings(monkeypatch, provedor_falso, provedor, falha):
+    _usar(monkeypatch, provedor=provedor)
+    provedor_falso["resposta"] = falha
 
     with pytest.raises(embeddings.EmbeddingsIndisponiveis):
         embeddings.gerar_embedding_consulta("ovo")
 
 
-def test_servico_fora_do_ar_responde_503_e_nao_sem_evidencia(client, monkeypatch):
-    """Space dormindo nao e 'a base nao tem estudos': isso seria uma resposta falsa."""
+def test_provedor_fora_do_ar_responde_503_e_nao_sem_evidencia(client, monkeypatch):
+    """Provedor fora do ar nao e 'a base nao tem estudos': isso seria uma resposta falsa."""
 
     def fora_do_ar(_texto):
-        raise embeddings.EmbeddingsIndisponiveis("HTTPStatusError")
+        raise embeddings.EmbeddingsIndisponiveis("HTTP 402")
 
     monkeypatch.setattr(retriever, "gerar_embedding_consulta", fora_do_ar)
 
@@ -127,6 +180,17 @@ def test_servico_fora_do_ar_responde_503_e_nao_sem_evidencia(client, monkeypatch
 
     assert resposta.status_code == 503
     assert resposta.json()["error"] == "upstream_unavailable"
+
+
+def test_motivo_da_falha_vai_para_o_log(client, monkeypatch, registros_de_log):
+    def cota_esgotada(_texto):
+        raise embeddings.EmbeddingsIndisponiveis("HTTP 402")
+
+    monkeypatch.setattr(retriever, "gerar_embedding_consulta", cota_esgotada)
+
+    client.post("/api/v1/check-claim", headers=AUTH, json={"text": "ovo faz mal?"})
+
+    assert registros_de_log[-1]["retrieval"]["detalhe"] == "HTTP 402"
 
 
 # ---------- contrato entre o cliente e o servico do Space ----------
@@ -157,10 +221,9 @@ def test_cliente_e_servico_do_space_falam_o_mesmo_contrato(monkeypatch):
 
     with TestClient(servico.app) as cliente_do_space:
         monkeypatch.setattr(embeddings.httpx, "Client", lambda **_kw: cliente_do_space)
-        monkeypatch.setattr(embeddings, "obter_settings", _settings)
+        _usar(monkeypatch, provedor="space")
 
         vetor = embeddings.gerar_embedding_consulta("agua com limao emagrece?")
-
         saude = cliente_do_space.get("/health").json()
 
     assert vetor == [0.5] * 768

@@ -1,27 +1,33 @@
 # Deploy do Claudinho
 
-Três peças, cada uma num lugar:
-
 ```
 App (Expo) ──HTTPS──> API (Vercel) ──> Supabase (dados + pgvector)
                           │
-                          ├──> Space de embeddings  (deploy/embeddings-space)
-                          └──> Space do Ollama      (deploy/ollama-space)  ──reserva──> Gemini
+                          ├──> API de inferência do Hugging Face  (embeddings, e5-base)
+                          └──> Space do Ollama (deploy/ollama-space) ──reserva──> Gemini
 ```
 
 A API **não carrega nenhum modelo**. É isso que a faz caber na Vercel: sem o
 `sentence-transformers`, o runtime ocupa cerca de 64 MB, contra 4,4 GB antes, e o limite
 da Vercel é 500 MB por função.
 
-Ordem recomendada: **1)** Space de embeddings, **2)** Space do Ollama, **3)** API. A API
-depende das duas primeiras para responder de verdade.
-
 ---
 
-## 1. Space de embeddings
+## 1. Embeddings
 
-Siga `deploy/embeddings-space/README.md`. Ao final você tem uma URL do tipo
-`https://<usuario>-<space>.hf.space` que responde com `"dimensao": 768`.
+Não há o que hospedar: a API de inferência do Hugging Face roda o mesmo
+`intfloat/multilingual-e5-base` com que a base foi indexada.
+
+1. Em https://huggingface.co/settings/tokens, crie um token **Fine-grained** com a
+   permissão **"Make calls to Inference Providers"**.
+2. Use esse token em `EMBEDDINGS_TOKEN` (tabela abaixo).
+
+**Cota:** conta gratuita tem US$ 0,10 por mês em créditos, **sem pagamento de excedente**:
+quando acaba, as chamadas param até o mês virar, e a API passa a devolver 503 (o log mostra
+`"detalhe": "HTTP 402"`). O consumo pode ser acompanhado em
+https://huggingface.co/settings/billing. Se a cota não bastar, as saídas são o PRO
+(US$ 9/mês, com excedente pago) ou o Space próprio de `deploy/embeddings-space`, que também
+exige PRO para ser criado.
 
 ## 2. Space do Ollama
 
@@ -44,8 +50,8 @@ Siga `deploy/ollama-space/README.md` (já no ar pela Beatriz).
 | `SUPABASE_URL` | URL do projeto Supabase | Sim |
 | `SUPABASE_KEY` | chave do Supabase | Sim |
 | `SUPABASE_JWT_SECRET` | Supabase → Project Settings → API → JWT Secret | Sim: sem ela, a API se recusa a subir fora do modo local |
-| `EMBEDDINGS_URL` | URL do Space de embeddings | Sim: sem ela, a API tenta carregar o modelo localmente e falha |
-| `EMBEDDINGS_TOKEN` | token de leitura do Hugging Face | Sim, se o Space for privado |
+| `EMBEDDINGS_URL` | `https://router.huggingface.co/hf-inference/models/intfloat/multilingual-e5-base/pipeline/feature-extraction` | Sim: sem ela, a API tenta carregar o modelo localmente e falha |
+| `EMBEDDINGS_TOKEN` | token Fine-grained com "Make calls to Inference Providers" | Sim |
 | `LLM_BASE_URL` | `https://<usuario>-<space>.hf.space/v1` (Space do Ollama) | Recomendada |
 | `LLM_API_KEY` | token de leitura do Hugging Face | Se o Space for privado |
 | `GEMINI_API_KEY` | chave do Gemini | Reserva do Ollama |
@@ -79,9 +85,10 @@ A Vercel roda a API em instâncias que sobem e somem conforme a demanda. Três e
 - **Rate limit por instância.** O contador fica na memória de cada instância, então o limite
   de 10/min vale por instância, não por usuário no total. Aceitável para o MVP; para valer de
   verdade, o contador vai para o Redis (Upstash), como previsto no `Docs/Production/03`.
-- **Primeira chamada lenta.** Instância nova (cold start) e Space dormindo somam atraso na
-  primeira checagem depois de um tempo parado. Se o Space de embeddings não responder, a API
-  devolve **503** ("tente de novo em instantes"), e não uma falsa resposta de "sem evidência".
+- **Primeira chamada lenta.** Instância nova (cold start) e Space do Ollama dormindo somam
+  atraso na primeira checagem depois de um tempo parado. Se os embeddings não responderem
+  (ou a cota do mês acabar), a API devolve **503**, e não uma falsa resposta de
+  "sem evidência".
 
 ---
 
@@ -106,4 +113,5 @@ Sem `EMBEDDINGS_URL`, a API usa o modelo local. Instale as dependências de ML:
 
     uv pip install -r requirements-dev.txt -r requirements-ml.txt
 
-Com `EMBEDDINGS_URL` apontando para o Space, basta o `requirements-dev.txt`.
+Com `EMBEDDINGS_URL` preenchida, basta o `requirements-dev.txt`, mas cada checagem gasta
+a cota gratuita do Hugging Face.

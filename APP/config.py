@@ -1,6 +1,7 @@
 """Configuracao da aplicacao, lida do ambiente (.env em desenvolvimento)."""
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -36,11 +37,15 @@ class Settings(BaseSettings):
     gemini_modelo: str = "gemini-3.5-flash-lite"
     openai_api_key: str | None = None
     openai_modelo: str = "gpt-4o-mini"
-    # Servico remoto de embeddings (deploy/embeddings-space). Com ele configurado, a API
-    # nao carrega o modelo e nao precisa do torch: cabe em plataforma serverless (Vercel)
-    # e no Render gratuito. Sem ele, usa o modelo local (so desenvolvimento).
+    # Servico remoto de embeddings. Com ele configurado, a API nao carrega o modelo e nao
+    # precisa do torch: cabe em plataforma serverless (Vercel) e no Render gratuito. Sem
+    # ele, usa o modelo local (so desenvolvimento). Ver APP/model/embeddings.py.
     embeddings_url: str | None = None
-    # Token do Hugging Face quando o Space de embeddings e privado.
+    # "hf-inference": API de inferencia do Hugging Face (nao precisa de Space; e o padrao).
+    # "space": servico proprio de deploy/embeddings-space (exige conta PRO para criar).
+    embeddings_provedor: Literal["hf-inference", "space"] = "hf-inference"
+    # Token do Hugging Face. Para "hf-inference", precisa da permissao
+    # "Make calls to Inference Providers".
     embeddings_token: str | None = None
     embeddings_timeout_s: float = 20.0
 
