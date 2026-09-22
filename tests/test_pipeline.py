@@ -133,30 +133,38 @@ def test_resposta_quebrada_da_llm_cai_no_fallback_local(llm_falsa, falha):
     assert f"[Ref: {CHUNK_PADRAO['chunk_id']}]" in resposta.answer
 
 
-# ---------- lacunas conhecidas ----------
-# strict=True: quando alguem corrigir, o teste passa a "passar inesperadamente" e a suite
-# falha, obrigando a tirar o xfail. Assim a lista de lacunas nunca fica desatualizada.
+# ---------- validacao da resposta da LLM ----------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Docs/Ethics/01: a resposta da LLM nao e conferida contra os chunks recuperados",
-)
-def test_llm_citando_fonte_que_nao_foi_recuperada_nao_chega_ao_usuario(llm_falsa):
+def test_llm_citando_fonte_que_nao_foi_recuperada_cai_no_fallback(llm_falsa, registros_de_log):
+    """Docs/Ethics/01: fonte inventada nao chega ao usuario; o fallback so usa trechos reais."""
     llm_falsa.resposta = {"answer": "Estudo comprova [Ref: chunk_inventado]", "risk_score": 0.2}
 
     resposta = _checar("Agua com limao em jejum emagrece?")
 
     assert "chunk_inventado" not in resposta.answer
+    assert resposta.model_version == MODELO_FALLBACK
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="resposta vazia da LLM e aceita e chega em branco ao app",
-)
-def test_llm_com_resposta_vazia_nao_chega_em_branco_ao_usuario(llm_falsa):
-    llm_falsa.resposta = {"answer": "   ", "risk_score": 0.2}
+def test_citacao_multipla_so_passa_se_todas_forem_reais(llm_falsa):
+    real = CHUNK_PADRAO["chunk_id"]
+    llm_falsa.resposta = {"answer": f"Isso e mito [Ref: {real}, outro_id].", "risk_score": 0.8}
 
-    assert _checar("Ovo aumenta o colesterol?").answer.strip()
+    assert _checar("Agua com limao emagrece?").model_version == MODELO_FALLBACK
+
+
+def test_resposta_com_citacao_valida_e_aceita(llm_falsa):
+    real = CHUNK_PADRAO["chunk_id"]
+    llm_falsa.resposta = {"answer": f"Isso e mito [Ref: {real}].", "risk_score": 0.8}
+
+    assert _checar("Agua com limao emagrece?").model_version == PROVEDOR_FALSO.versao
+
+
+@pytest.mark.parametrize("vazia", ["   ", "", None, 42])
+def test_resposta_vazia_ou_que_nao_e_texto_cai_no_fallback(llm_falsa, vazia):
+    llm_falsa.resposta = {"answer": vazia, "risk_score": 0.2}
+
+    resposta = _checar("Ovo aumenta o colesterol?")
+
+    assert resposta.answer.strip()
+    assert resposta.model_version == MODELO_FALLBACK

@@ -10,6 +10,7 @@ Documentado em:
 """
 
 import logging
+import re
 from typing import Literal
 
 from APP.config import Settings
@@ -19,6 +20,7 @@ from APP.model.llm import GeracaoIndisponivel, gerar_json, provedores_configurad
 from APP.model.resposta_local import MODEL_VERSION as MODEL_VERSION_LOCAL
 from APP.model.resposta_local import montar_resposta_local
 from APP.model.retriever import formatar_contexto_cientifico
+from APP.observabilidade import adicionar_ao_log
 from APP.schemas import Fonte
 from APP.verdict import classificar_veredito
 
@@ -90,7 +92,7 @@ def gerar_resposta_grounded(
             dados_sensiveis=dados_sensiveis,
         )
         # Fora do try, uma resposta sem "answer" viraria a string "None" na tela do app.
-        answer = str(resposta_llm["answer"])
+        answer = _validar_resposta(resposta_llm["answer"], raw_chunks)
         score = max(0.0, min(1.0, float(resposta_llm.get("risk_score", 0.5))))
     except (GeracaoIndisponivel, KeyError, TypeError, ValueError) as erro:
         # Nenhum provedor respondeu (Space dormindo, cota esgotada, timeout). Em vez de
@@ -101,6 +103,34 @@ def gerar_resposta_grounded(
         return _responder_localmente(alegacao_canonica, fontes, raw_chunks, pergunta_exibicao)
 
     return answer, score, classificar_veredito(score), provedor.versao, prompt_version
+
+
+_REFERENCIA = re.compile(r"\[Ref:\s*([^\]]+)\]")
+
+
+def _validar_resposta(answer: object, raw_chunks: list[dict[str, object]]) -> str:
+    """Confere a resposta da LLM antes de ela chegar ao usuario.
+
+    Levanta ValueError, que o gerador trata como falha e responde pelo fallback local
+    (ancorado so em trechos reais), quando:
+    - a resposta vem vazia ou nao e texto: chegaria em branco ao app;
+    - cita um estudo que o retriever nao devolveu: o modelo inventou a fonte, e a
+      afirmacao ligada a ela provavelmente tambem (Docs/Ethics/01, anti-alucinacao).
+    """
+    if not isinstance(answer, str) or not answer.strip():
+        adicionar_ao_log(generation={"rejeitada": "resposta_vazia"})
+        raise ValueError("resposta vazia da LLM")
+
+    recuperados = {str(c.get("chunk_id", "")) for c in raw_chunks}
+    citados = {ref.strip() for grupo in _REFERENCIA.findall(answer) for ref in grupo.split(",")}
+    inventados = citados - recuperados
+    if inventados:
+        adicionar_ao_log(
+            generation={"rejeitada": "referencia_inexistente", "refs_invalidas": len(inventados)}
+        )
+        raise ValueError(f"LLM citou estudo nao recuperado: {sorted(inventados)}")
+
+    return answer.strip()
 
 
 def _responder_localmente(
