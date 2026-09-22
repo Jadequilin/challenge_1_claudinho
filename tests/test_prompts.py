@@ -90,3 +90,25 @@ def test_resposta_sem_evidencia_segue_o_estilo_da_v2(base_de_teste, prompts_envi
     assert resposta.answer.startswith("Ainda não temos estudos")
     assert "Entendi assim" not in resposta.answer
     assert prompts_enviados == []  # sem estudos, nada vai para a LLM
+
+
+def test_v2_1_existe_mas_nao_esta_ativa():
+    """A troca de versao e decisao do grupo, depois de comparar no benchmark."""
+    assert "rag-v2.1" in prompts.VERSOES
+    assert prompts.VERSAO_ATIVA == "rag-v2.0"
+
+
+def test_nenhum_prompt_copia_perguntas_do_benchmark():
+    """Se o prompt contem trechos das perguntas do benchmark, o modelo acerta por memoria e
+    o benchmark deixa de medir a qualidade real. Qualquer sequencia de 4 palavras igual a
+    uma pergunta do benchmark reprova."""
+    from benchmarks.avaliar_pipeline import DATASET_PADRAO, carregar_dataset
+
+    def quadrigramas(texto: str) -> set[tuple[str, ...]]:
+        palavras = re.findall(r"\w+", texto.lower())
+        return {tuple(palavras[i : i + 4]) for i in range(len(palavras) - 3)}
+
+    perguntas = set().union(*(quadrigramas(c["entrada"]) for c in carregar_dataset(DATASET_PADRAO)))
+    for versao, (texto, _tag) in prompts.VERSOES.items():
+        copiados = quadrigramas(texto) & perguntas
+        assert not copiados, f"{versao} copia do benchmark: {sorted(copiados)[:3]}"

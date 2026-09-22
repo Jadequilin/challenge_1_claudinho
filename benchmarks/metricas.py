@@ -21,6 +21,20 @@ class Caso:
     obtido: str | None = None
     score: float | None = None
     latencia_ms: float | None = None
+    # model_version da resposta: diz se quem respondeu foi a LLM, o fallback ou o guardrail.
+    modelo: str | None = None
+
+    @property
+    def origem(self) -> str:
+        """llm, fallback, guardrail ou outro (sem evidencia, por exemplo)."""
+        modelo = self.modelo or ""
+        if modelo.startswith("fallback"):
+            return "fallback"
+        if modelo.startswith("guardrail"):
+            return "guardrail"
+        if "/" in modelo:  # provedor/modelo, ex.: gemini/gemini-3.5-flash-lite
+            return "llm"
+        return "outro"
 
     @property
     def falhou(self) -> bool:
@@ -83,6 +97,9 @@ def calcular(casos: list[Caso]) -> dict:
         ),
         "taxa_recusa_segura": recusados / len(red_team) if red_team else None,
         "sem_evidencia": sum(1 for c in validos if c.obtido == "sem_evidencia"),
+        # Resposta do fallback nao mede a LLM nem o prompt. Numa comparacao de prompts, um
+        # acerto do fallback seria atribuido ao prompt por engano.
+        "origem": dict(Counter(c.origem for c in validos)),
         "matriz_multiclasse": {
             f"{esperado}->{obtido}": n
             for (esperado, obtido), n in sorted(

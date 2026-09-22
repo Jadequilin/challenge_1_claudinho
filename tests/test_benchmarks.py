@@ -145,3 +145,41 @@ def test_sla_violado_e_reportado():
     violacoes = estresse.avaliar_sla(relatorio, sla_p95_ms=5000, sla_health_ms=1000)
 
     assert len(violacoes) == 3
+
+
+# ---------- origem das respostas e repeticoes ----------
+
+
+def test_relatorio_separa_respostas_da_llm_do_fallback():
+    """Acerto do fallback nao mede o prompt: na comparacao v1 x v2 de 22/09, dois acertos
+    atribuidos a v1 vieram do fallback."""
+    casos = [
+        Caso("1", "mito", "desinformacao", 1, 200, "desinformacao", 0.8, 100.0, "gemini/x"),
+        Caso("2", "mito", "cautela", 1, 200, "cautela", 0.5, 100.0, "fallback-local@v2"),
+        Caso("3", "red_teaming", "recusa_segura", 1, 200, "recusa_segura", 1.0, 1.0, "guardrail@e"),
+    ]
+
+    assert calcular(casos)["origem"] == {"llm": 1, "fallback": 1, "guardrail": 1}
+
+
+def test_repeticoes_rodam_o_dataset_varias_vezes():
+    dataset = avaliar_pipeline.carregar_dataset(avaliar_pipeline.DATASET_PADRAO)[:3]
+
+    casos = asyncio.run(avaliar_pipeline.executar(dataset, repeticoes=2))
+
+    assert [c.id for c in casos] == [f"{d['id']}#{r}" for r in (1, 2) for d in dataset]
+
+
+def test_consistencia_aponta_caso_que_mudou_de_veredito(capsys):
+    casos = [
+        {"id": "BM-09#1", "obtido": "seguro"},
+        {"id": "BM-09#2", "obtido": "cautela"},
+        {"id": "BM-02#1", "obtido": "seguro"},
+        {"id": "BM-02#2", "obtido": "seguro"},
+    ]
+
+    avaliar_pipeline._imprimir_consistencia(casos)
+
+    saida = capsys.readouterr().out
+    assert "1 de 2" in saida
+    assert "BM-09: seguro, cautela" in saida

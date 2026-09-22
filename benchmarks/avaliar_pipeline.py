@@ -39,6 +39,7 @@ async def executar(
     url: str | None = None,
     token: str | None = None,
     intervalo_s: float | None = None,
+    repeticoes: int = 1,
 ) -> list[Caso]:
     """Roda cada caso do dataset contra a API e devolve os resultados brutos.
 
@@ -49,9 +50,16 @@ async def executar(
     if intervalo_s is None:
         intervalo_s = INTERVALO_COM_TOKEN_UNICO_S if token else 0.0
 
+    # A LLM nao responde sempre igual: repetir e somar reduz o peso da sorte na comparacao.
+    rodadas = [
+        {**item, "id": f"{item['id']}#{r + 1}"} if repeticoes > 1 else item
+        for r in range(repeticoes)
+        for item in dataset
+    ]
+
     casos: list[Caso] = []
     async with criar_cliente(url) as cliente:
-        for indice, item in enumerate(dataset):
+        for indice, item in enumerate(rodadas):
             if indice and intervalo_s:
                 await asyncio.sleep(intervalo_s)
 
@@ -75,6 +83,7 @@ async def executar(
                     obtido=corpo.get("verdict"),
                     score=corpo.get("risk_score"),
                     latencia_ms=parede_ms,
+                    modelo=corpo.get("model_version"),
                 )
             )
     return casos
@@ -103,11 +112,32 @@ def imprimir(relatorio: dict) -> None:
     if recusa is not None:
         print(f"Recusa segura:   {recusa:.1%}  (meta 100%)")
     print(f"Sem evidencia:   {relatorio['sem_evidencia']}")
+    origem = relatorio["origem"]
+    print(f"Quem respondeu:  {origem}")
+    if origem.get("fallback"):
+        print(
+            f"ATENCAO: {origem['fallback']} resposta(s) vieram do fallback, nao da LLM. "
+            "Numa comparacao de prompts, esses casos nao medem o prompt."
+        )
+    _imprimir_consistencia(relatorio["casos"])
     if lat["p95"] is not None:
         print(f"Latencia p50/p95: {lat['p50']:.0f} / {lat['p95']:.0f} ms")
     if relatorio["falhas"]:
         print(f"\nFALHAS (fora das metricas): {relatorio['falhas']}")
     print(linha)
+
+
+def _imprimir_consistencia(casos: list[dict]) -> None:
+    """Com repeticoes, mostra os casos em que a LLM mudou de veredito entre rodadas."""
+    por_caso: dict[str, list[str]] = {}
+    for c in casos:
+        if "#" in c["id"]:
+            por_caso.setdefault(c["id"].split("#")[0], []).append(c["obtido"] or "falha")
+    instaveis = {k: v for k, v in por_caso.items() if len(set(v)) > 1}
+    if por_caso:
+        print(f"Casos instaveis entre rodadas: {len(instaveis)} de {len(por_caso)}")
+        for caso, vereditos in instaveis.items():
+            print(f"  {caso}: {', '.join(vereditos)}")
 
 
 def verificar_metas(relatorio: dict, min_recall, min_f2, min_recusa) -> list[str]:
@@ -129,13 +159,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--token", help="JWT real (modo remoto em producao)")
     parser.add_argument("--intervalo", type=float, help="segundos entre casos")
     parser.add_argument("--saida", type=Path, help="grava o relatorio completo em JSON")
+    parser.add_argument("--repeticoes", type=int, default=1, help="roda o dataset N vezes")
     parser.add_argument("--min-recall", type=float)
     parser.add_argument("--min-f2", type=float)
     parser.add_argument("--min-recusa", type=float)
     args = parser.parse_args(argv)
 
     dataset = carregar_dataset(args.dataset)
-    casos = asyncio.run(executar(dataset, args.url, args.token, args.intervalo))
+    casos = asyncio.run(executar(dataset, args.url, args.token, args.intervalo, args.repeticoes))
     relatorio = calcular(casos)
     imprimir(relatorio)
 
