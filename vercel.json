@@ -5,6 +5,5 @@
       "maxDuration": 180,
       "excludeFiles": "{tests/**,Docs/**,benchmarks/**,deploy/**,.venv/**,**/__pycache__/**,**/*.md}"
     }
-  },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+  }
 }
