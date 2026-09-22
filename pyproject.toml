@@ -16,6 +16,7 @@ dependencies = [
     "limits==5.7.0",
     "httpx==0.28.1",
     "PyJWT==2.13.0",
+    "cryptography==50.0.1",
 ]
 
 [project.optional-dependencies]

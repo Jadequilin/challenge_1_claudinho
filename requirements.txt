@@ -15,3 +15,5 @@ supabase==2.31.0
 limits==5.7.0
 httpx==0.28.1
 PyJWT==2.13.0
+# Validacao dos JWTs assinados com chave assimetrica (ES256/RS256), padrao do Supabase.
+cryptography==50.0.1

@@ -49,13 +49,13 @@ Siga `deploy/ollama-space/README.md` (já no ar pela Beatriz).
 | `APP_ENV` | `production` | Sim |
 | `SUPABASE_URL` | URL do projeto Supabase | Sim |
 | `SUPABASE_KEY` | chave do Supabase | Sim |
-| `SUPABASE_JWT_SECRET` | Supabase → Project Settings → API → JWT Secret | Sim: sem ela, a API se recusa a subir fora do modo local |
+| `SUPABASE_JWT_SECRET` | Supabase → Project Settings → API → JWT Secret (legado) | Só em projeto antigo, que assina tokens com HS256. Projetos criados desde outubro de 2025 usam chaves assimétricas, e a API valida pelas chaves públicas do `SUPABASE_URL`, sem segredo |
 | `EMBEDDINGS_URL` | `https://router.huggingface.co/hf-inference/models/intfloat/multilingual-e5-base/pipeline/feature-extraction` | Sim: sem ela, a API tenta carregar o modelo localmente e falha |
 | `EMBEDDINGS_TOKEN` | token Fine-grained com "Make calls to Inference Providers" | Sim |
 | `LLM_BASE_URL` | `https://<usuario>-<space>.hf.space/v1` (Space do Ollama) | Recomendada |
 | `LLM_API_KEY` | token de leitura do Hugging Face | Se o Space for privado |
 | `GEMINI_API_KEY` | chave do Gemini | Reserva do Ollama |
-| `ORIGENS_PERMITIDAS` | `["https://dominio-do-app"]` | Sim, se o app rodar no navegador |
+| `ORIGENS_PERMITIDAS` | `["https://seu-projeto.vercel.app"]`, com colchetes e aspas duplas | **Sim**: sem ela, a API se recusa a subir fora do modo local |
 
 ### Conferindo
 
