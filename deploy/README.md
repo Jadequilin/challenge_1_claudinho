@@ -71,10 +71,11 @@ Para medir com JWT real, use o benchmark com `--token`.)
 
 A Vercel roda a API em instâncias que sobem e somem conforme a demanda. Três efeitos:
 
-- **Perfil de saúde em memória.** O repositório de perfil ainda é o em memória
-  (`APP/repositorios/perfil.py`), esperando a tabela no Supabase. Na Vercel, o perfil salvo
-  numa requisição pode não existir na seguinte. **Precisa da tabela antes de o perfil ser
-  usado de verdade.** O feedback já tem implementação no Supabase.
+- **Perfil e feedback em memória.** Os dois repositórios ainda são os em memória
+  (`APP/repositorios/perfil.py` e `APP/repositorios/feedback.py`), esperando as tabelas
+  `profiles` e `feedback` no Supabase; o passo a passo está no docstring de cada
+  `RepositorioSupabase`. Na Vercel, um perfil ou feedback salvo numa requisição pode não
+  existir na seguinte. **Precisam das tabelas antes de serem usados de verdade.**
 - **Rate limit por instância.** O contador fica na memória de cada instância, então o limite
   de 10/min vale por instância, não por usuário no total. Aceitável para o MVP; para valer de
   verdade, o contador vai para o Redis (Upstash), como previsto no `Docs/Production/03`.
