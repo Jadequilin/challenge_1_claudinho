@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     gemini_modelo: str = "gemini-3.5-flash-lite"
     openai_api_key: str | None = None
     openai_modelo: str = "gpt-4o-mini"
+    # Servico remoto de embeddings (deploy/embeddings-space). Com ele configurado, a API
+    # nao carrega o modelo e nao precisa do torch: cabe em plataforma serverless (Vercel)
+    # e no Render gratuito. Sem ele, usa o modelo local (so desenvolvimento).
+    embeddings_url: str | None = None
+    # Token do Hugging Face quando o Space de embeddings e privado.
+    embeddings_token: str | None = None
+    embeddings_timeout_s: float = 20.0
 
 
 @lru_cache
