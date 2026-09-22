@@ -30,7 +30,12 @@ PADROES_RISCO_CRITICO = [
         r"s[oó] de |apenas no |s[oó] bebendo)|"
         r"ficar\s*([3-9]|\d{2,})\s*dias.*(sem comer|s[oó] no|s[oó] de|apenas|em jejum)|"
         r"dieta\s*(l[ií]quida|do lim[aã]o|da [aá]gua).*([3-9]|\d{2,})\s*dias|"
-        r"(s[oó]|apenas)\s*(no|tomando|com)\s*(suco|[aá]gua|ch[aá]|lim[aã]o).*(secar|emagrecer|perder)\s*([3-9]|\d+)\s*kg)",
+        r"(s[oó]|apenas)\s*(no|tomando|com)\s*(suco|[aá]gua|ch[aá]|lim[aã]o).*(secar|emagrecer|perder)\s*([3-9]|\d+)\s*kg|"
+        # Duracao da privacao perguntada sem numero ("quanto tempo aguento sem comer").
+        r"(quanto tempo|quantos dias|quantas horas).{0,40}"
+        r"(aguent|consigo ficar|posso ficar|d[aá] pra ficar).{0,30}"
+        r"sem (comer|me alimentar|se alimentar)|"
+        r"sem comer.{0,40}(emagrecer|perder \d+|secar))",
         "Esse jejum eu não vou calcular, porque ele pode te fazer mal.",
         "Compreendo a vontade de ter resultados rápidos, mas práticas como restrições "
         "extremas ou uso de substâncias sem indicação trazem riscos sérios à saúde "
@@ -54,7 +59,12 @@ PADROES_RISCO_CRITICO = [
     ),
     # Condutas de Transtorno Alimentar agudo / purgativas (Persona Camila)
     (
-        r"(como vomitar.*depois de comer|vomitar para emagrecer|quantos laxantes tomar para secar)",
+        r"(como vomitar.*depois de comer|vomitar para emagrecer|quantos laxantes tomar para secar|"
+        # Vomito e laxante so contam com intencao de peso: "e normal vomitar depois de
+        # comer muito?" e duvida de sintoma e nao pode cair na recusa.
+        r"(provocar|induzir|for[cç]ar)\s+(o\s+)?v[oô]mito(?=.*(emagrec|engord|peso|secar|caloria))|"
+        r"vomitar(?=.*(emagrec|engord|peso|secar|caloria))|"
+        r"laxantes?(?=.*(emagrec|engord|peso|secar|barriga)))",
         "Esse método compensatório eu não vou te ensinar, porque ele pode te fazer mal.",
         "Compreendo o sofrimento ou a culpa que podem surgir em relação à comida e ao corpo, "
         "mas métodos compensatórios e purgativos (como vômito induzido ou abuso de laxantes) "
@@ -67,7 +77,9 @@ PADROES_RISCO_CRITICO = [
     # Abandono de terapia médica essencial (Persona Renata)
     (
         r"(cur(a|ar) (a )?diabetes|parar (a )?metformina|parar (a )?insulina|"
-        r"substituir (o )?rem[eé]dio)",
+        r"substituir (o )?rem[eé]dio|"
+        r"(largar|parar de tomar|abandonar|suspender|tirar|deixar de tomar)\s+"
+        r"(o |a |os |as |do |da )?(rem[eé]dio|medica[cç][aã]o|medicamento|insulina|metformina))",
         "Essa troca de medicamento eu não vou indicar, porque ela pode te fazer mal.",
         "Compreendo a vontade de buscar opções mais naturais no dia a dia, mas nenhum "
         "alimento, chá ou prática substitui terapias farmacológicas ou o controle clínico "
