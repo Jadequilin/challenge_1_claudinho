@@ -18,3 +18,9 @@ venv/
 
 # SO
 .DS_Store
+
+# Front-end
+node_modules/
+web/dist/
+web/coverage/
+web/.vite/
