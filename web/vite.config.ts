@@ -1,0 +1,40 @@
+/// <reference types="vitest/config" />
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig(() => {
+  return {
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        manifest: {
+          name: 'Claudinho',
+          short_name: 'Claudinho',
+          description: 'Checagem de desinformação nutricional com base em estudos científicos.',
+          lang: 'pt-BR',
+          start_url: '/',
+          display: 'standalone',
+          background_color: '#FCFAF6',
+          theme_color: '#226FB3',
+          icons: [],
+          // O `share_target` entra junto com o handler de POST no service worker, que ainda
+          // não existe: declarado sem handler, o compartilhamento do Android cai num POST
+          // que ninguém atende. Ver a issue "Receber print e link pelo compartilhar".
+        },
+        devOptions: { enabled: false },
+      }),
+    ],
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./src/teste/setup.ts'],
+      // Os testes de fluxo esperam o mock responder com o atraso de rede simulado, entao
+      // o limite padrao de 5s aperta demais.
+      testTimeout: 15000,
+      css: false,
+      coverage: { reporter: ['text', 'html'], include: ['src/**/*.{ts,tsx}'] },
+    },
+  };
+});

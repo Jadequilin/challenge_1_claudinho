@@ -75,9 +75,44 @@ A partir do documento citado, foi criada a estrutura básica deste repositório,
 
 ---
 
-# 💻 Rodando a API localmente
+# 💻 Rodando o projeto
 
-O backend está em `APP/`. Hoje ele é um **esqueleto**: o contrato dos endpoints é o definitivo, mas `/check-claim` responde com dados **mockados**, porque o pipeline de RAG ainda não está ligado. Isso permite que o app mobile já seja desenvolvido contra o formato final da resposta.
+O repositório tem duas partes: a API em `APP/` e o PWA em `web/`. Na `Dev`, o
+`/check-claim` ainda responde com dados **mockados**, porque o pipeline de RAG está nos
+PRs #13 e #15. O contrato, esse sim, é o definitivo.
+
+## O jeito mais rápido: tudo no Docker
+
+```bash
+cp .env.example .env     # preencha SUPABASE_URL e SUPABASE_KEY
+docker compose up --build
+```
+
+| Serviço | Endereço | O que é |
+| :--- | :--- | :--- |
+| `web` | http://localhost:5173 | O PWA, com recarga automática ao salvar arquivo |
+| `api` | http://localhost:8000 | A API, com `/docs` para o Swagger |
+
+Nesse arranjo o app fala com a API de verdade: o mock do front fica desligado e o CORS
+já libera o `localhost:5173`. Para derrubar, `docker compose down`.
+
+## Só o front, sem backend nenhum
+
+É assim que dá para trabalhar nas telas sem Supabase, sem LLM e sem Docker:
+
+```bash
+cd web
+npm install
+cp .env.example .env.local   # já vem com VITE_API_MOCK=true
+npm run dev
+```
+
+O mock responde o contrato inteiro, inclusive os erros. Detalhes em
+[`web/README.md`](./web/README.md).
+
+---
+
+# 💻 Rodando a API sozinha
 
 ## Pré-requisitos
 
@@ -122,10 +157,10 @@ curl -X POST http://127.0.0.1:8000/api/v1/check-claim \
   -d '{"input_type":"text","text":"água com limão em jejum queima gordura?"}'
 ```
 
-## 4. Rodar com Docker
+## 4. Rodar só a API no Docker
 
 ```bash
-docker compose up --build
+docker compose up --build api
 ```
 
 ## 5. Testes e qualidade
@@ -155,6 +190,8 @@ black --check .    # formatação
 | `APP/repositorios/feedback.py` | Persistência do feedback, **hoje em memória** |
 | `APP/model/database.py` | Client do Supabase, criado sob demanda |
 | `tests/` | Suíte do pytest |
+| `web/` | PWA em React e TypeScript, com o design system aplicado ([README](./web/README.md)) |
+| `Docs/Design/` | Design system e protótipo navegável |
 
 ## Logs de inferência
 
