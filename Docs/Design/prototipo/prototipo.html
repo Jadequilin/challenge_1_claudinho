@@ -1,6 +1,8 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Claudinho</title>
-<meta name="theme-color" content="#622E71">
+<meta name="theme-color" content="#226FB3">
+<script>document.documentElement.lang = "pt-BR";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap">
@@ -323,7 +325,11 @@
   };
 
   const S = {
-    screen: 'home',
+    // Primeiro acesso cai nas boas-vindas: o termo de uso e a confirmação de 18 anos
+    // são obrigatórios antes de qualquer checagem (Docs/Ethics/03, seção 2.2). Quem já
+    // aceitou volta direto para a tela de checar.
+    screen: store.get('onboarded', false) ? 'home' : 'welcome',
+    onboarded: store.get('onboarded', false),
     tab: 'home',
     // Sem conta por padrao: o uso comeca no primeiro toque e a conta so entra quando
     // o usuario quiser levar o histórico para outro aparelho.
@@ -332,7 +338,9 @@
     contaDispensada: store.get('contaDispensada', false),
     tema: store.get('tema', 'auto'),
     profile: store.get('profile', null),
-    history: store.get('history', SEED_HISTORY),
+    // Quem ainda não passou pelo primeiro acesso começa sem histórico, senão a tela de
+    // boas-vindas seria seguida por três checagens que a pessoa nunca fez.
+    history: store.get('history', store.get('onboarded', false) ? SEED_HISTORY : []),
     installDismissed: store.get('installDismissed', false),
     draft: { text: '', image: null },
     useProfile: true,
@@ -1092,7 +1100,12 @@
 
   /* ---------- Ações ---------- */
   const ACTIONS = {
-    agree() { go('home'); toast('Pode perguntar. Nada de cadastro por enquanto.'); },
+    agree() {
+      S.onboarded = true;
+      store.set('onboarded', true);
+      go('home');
+      toast('Pode perguntar. Nada de cadastro por enquanto.');
+    },
     'criar-conta'(el, e) { e?.preventDefault(); S.modoConta = 'criar'; S.voltarPara = el?.dataset.voltar || 'profile'; go('conta'); },
     entrar(el, e) { e?.preventDefault(); S.modoConta = 'entrar'; S.voltarPara = 'welcome'; go('conta'); },
     'dispensar-conta'() { S.contaDispensada = true; store.set('contaDispensada', true); render(false); },
@@ -1153,9 +1166,9 @@
     'review-terms'() { S.reviewTerms = true; go('welcome'); },
     restart() {
       S.profile = null; S.history = []; S.installDismissed = false; S.draft = { text: '', image: null };
-      S.conta = null; S.contaDispensada = false;
+      S.conta = null; S.contaDispensada = false; S.onboarded = false;
       store.set('profile', null); store.set('history', []); store.set('installDismissed', false);
-      store.set('conta', null); store.set('contaDispensada', false);
+      store.set('conta', null); store.set('contaDispensada', false); store.set('onboarded', false);
       S.reviewTerms = false; go('welcome');
     },
   };
