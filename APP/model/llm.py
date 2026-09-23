@@ -108,7 +108,7 @@ def gerar_json(
     for provedor in elegiveis:
         try:
             return _chamar(provedor, sistema, usuario, transporte), provedor
-        except (httpx.HTTPError, ValueError, KeyError, IndexError) as erro:
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, AttributeError) as erro:
             # ValueError cobre o JSON quebrado: modelo pequeno as vezes escapa do formato.
             logger.warning("Provedor %s falhou: %s: %s", provedor.versao, type(erro).__name__, erro)
 
@@ -137,6 +137,13 @@ def _chamar(
         )
         resposta.raise_for_status()
         texto = resposta.json()["choices"][0]["message"]["content"]
+
+    # Gemini e OpenAI respondem 200 com content nulo quando o filtro de seguranca recusa,
+    # ou quando a resposta so traz tool_calls. Sem esta checagem, _sem_cercas_de_codigo(None)
+    # levanta AttributeError, que escapa dos handlers e vira 500: o proximo provedor nao e
+    # tentado e o fallback local nao roda.
+    if not isinstance(texto, str):
+        raise GeracaoIndisponivel("provedor devolveu resposta sem conteudo de texto")
 
     objeto = json.loads(_sem_cercas_de_codigo(texto))
     if not isinstance(objeto, dict):

@@ -85,7 +85,15 @@ def _remoto(texto: str, settings) -> list[float]:
     try:
         vetor = dados["vetores"][0] if settings.embeddings_provedor == "space" else dados
         # O hf-inference devolve [..768..] para um texto, ou [[..768..]] em algumas versoes.
+        # Cuidado: se o endpoint devolver a matriz TOKEN A TOKEN, cada linha tambem tem 768
+        # posicoes, entao pegar a linha 0 passaria pela checagem de dimensao e a busca
+        # passaria a usar o embedding do primeiro token, sem erro e sem log. Uma linha so
+        # e um lote de um texto; varias linhas para um texto so sao tokens.
         if vetor and isinstance(vetor[0], list):
+            if len(vetor) > 1:
+                raise EmbeddingsIndisponiveis(
+                    f"resposta com {len(vetor)} vetores para um texto: matriz por token?"
+                )
             vetor = vetor[0]
         return [float(x) for x in vetor]
     except (KeyError, IndexError, TypeError, ValueError) as erro:

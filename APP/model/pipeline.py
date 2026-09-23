@@ -31,7 +31,20 @@ def executar_pipeline_de_checagem(
     trace_id: str,
 ) -> CheckClaimResponse:
     """Executa o fluxo completo do pipeline RAG anti-alucinacao."""
-    texto_entrada = requisicao.text or requisicao.url or "Analise de imagem recebida via upload"
+    # OCR de print e leitura de pagina ainda nao existem. Antes, imagem virava a frase fixa
+    # "Analise de imagem recebida via upload" e link virava a propria URL: as duas
+    # alimentavam embedding, guardrails e prompt, e o usuario recebia um veredito confiante,
+    # com fontes e DOI, sobre um assunto que nao tinha relacao com o que ele mandou.
+    # Recusar e melhor do que responder errado com cara de certo.
+    if not requisicao.text:
+        raise ApiError(
+            "input_nao_suportado",
+            422,
+            "Ainda não conseguimos ler prints nem links. Escreva a dúvida em texto que a "
+            "gente verifica para você.",
+        )
+
+    texto_entrada = requisicao.text
     pergunta_amigavel = reformular_pergunta_amigavel(texto_entrada)
 
     # 0. Menor de 18 anos: recusa de servico (Docs/Ethics/02, LGPD Art. 14). Vem antes de
@@ -87,7 +100,7 @@ def executar_pipeline_de_checagem(
             for f in fontes_tbca
         ]
         answer, risk_score, verdict, model_ver, prompt_ver = gerar_resposta_grounded(
-            alegacao_canonica=texto_entrada,
+            alegacao_canonica=alegacao_canonica,
             fontes=fontes_tbca,
             raw_chunks=raw_chunks_tbca,
             settings=settings,

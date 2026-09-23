@@ -22,7 +22,7 @@ from APP.model.resposta_local import montar_resposta_local
 from APP.model.retriever import formatar_contexto_cientifico
 from APP.observabilidade import adicionar_ao_log
 from APP.schemas import Fonte
-from APP.verdict import classificar_veredito
+from APP.verdict import LIMIAR_DESINFORMACAO, LIMIAR_SEGURO, classificar_veredito
 
 logger = logging.getLogger("gerador_rag")
 
@@ -39,9 +39,15 @@ RESPOSTA_SEM_EVIDENCIA = (
 
 
 def _definir_nivel_risco(score: float) -> Literal["baixo", "medio", "alto"]:
-    if score < 0.35:
+    """Nivel de risco a partir dos MESMOS limiares do veredito (APP/verdict.py).
+
+    Repetir 0.35 e 0.65 aqui fazia a calibracao ter dois donos: mudar o limiar no
+    verdict.py, que a documentacao aponta como a regra, deixava a resposta incoerente
+    consigo mesma (verdict "cautela" com risk_level "alto").
+    """
+    if score < LIMIAR_SEGURO:
         return "baixo"
-    if score <= 0.65:
+    if score <= LIMIAR_DESINFORMACAO:
         return "medio"
     return "alto"
 
@@ -94,7 +100,7 @@ def gerar_resposta_grounded(
         # Fora do try, uma resposta sem "answer" viraria a string "None" na tela do app.
         answer = _validar_resposta(resposta_llm["answer"], raw_chunks)
         score = max(0.0, min(1.0, float(resposta_llm.get("risk_score", 0.5))))
-    except (GeracaoIndisponivel, KeyError, TypeError, ValueError) as erro:
+    except (GeracaoIndisponivel, KeyError, TypeError, ValueError, AttributeError) as erro:
         # Nenhum provedor respondeu (Space dormindo, cota esgotada, timeout). Em vez de
         # devolver 503, o classificador de regras decide o veredito e a resposta e
         # montada a partir dos proprios trechos recuperados. E local: nao envia nada

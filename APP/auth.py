@@ -22,10 +22,12 @@ rotaciona o access token de hora em hora), o perfil sumiria depois de sair e ent
 novo e a cota se renovaria sozinha a cada refresh.
 """
 
+import logging
 from functools import lru_cache
 
 import jwt
-from fastapi import Depends, Header
+from fastapi import Depends, Request
+from starlette.concurrency import run_in_threadpool
 
 from APP.config import Settings, obter_settings
 from APP.errors import ApiError
@@ -115,6 +117,63 @@ def _chaves_publicas(supabase_url: str) -> jwt.PyJWKClient:
     )
 
 
+_SEM_IDENTIDADE = object()
+
+
+async def resolver_identidade(request, settings: Settings | None = None):
+    """Valida o token UMA vez por requisicao e guarda o resultado em `request.state`.
+
+    Duas razoes:
+
+    - **Custo.** A mesma validacao era feita tres vezes (middleware de log, rate limit e
+      dependencia da rota). Com HS256 era barato; com chave assimetrica, nao e.
+    - **Bloqueio do event loop.** Buscar a chave publica e HTTP bloqueante. Quando o `kid`
+      nao esta em cache, o PyJWT vai a rede. Chamado direto de um caminho async, isso
+      congela a API inteira, inclusive o /health: bastaria repetir tokens com `kid`
+      aleatorio para derrubar tudo. Aqui a validacao roda na threadpool.
+
+    Devolve a identidade, ou None quando nao ha token valido. Guarda tambem o erro, para
+    a dependencia da rota poder levanta-lo sem revalidar.
+    """
+    if hasattr(request.state, "identidade"):
+        return request.state.identidade
+
+    token = token_do_header(request.headers.get("authorization"))
+    request.state.erro_de_autenticacao = None
+    if token is None:
+        request.state.identidade = None
+        request.state.erro_de_autenticacao = ApiError("unauthorized", 401)
+        return None
+
+    try:
+        identidade = await run_in_threadpool(
+            identidade_do_token, token, settings or obter_settings()
+        )
+    except ApiError as erro:
+        request.state.identidade = None
+        request.state.erro_de_autenticacao = erro
+        return None
+
+    request.state.identidade = identidade
+    return identidade
+
+
+def preparar_chaves_publicas(settings: Settings) -> None:
+    """Baixa as chaves publicas na subida, para a primeira requisicao nao pagar a rede.
+
+    Falha aqui nao derruba a aplicacao: o Supabase pode estar fora do ar no deploy, e a
+    busca acontece de novo sob demanda.
+    """
+    if settings.app_env == "local" and not settings.supabase_jwt_secret:
+        return
+    try:
+        _chaves_publicas(settings.supabase_url).get_signing_keys()
+    except Exception as erro:  # noqa: BLE001 - qualquer falha aqui e tolerada
+        logging.getLogger("claudinho").warning(
+            "Nao foi possivel pre-carregar as chaves publicas: %s", type(erro).__name__
+        )
+
+
 def identidade_do_header(authorization: str | None, settings: Settings | None = None) -> str | None:
     """Mesma identidade da rota, porem sem levantar erro.
 
@@ -132,11 +191,14 @@ def identidade_do_header(authorization: str | None, settings: Settings | None = 
 
 
 async def exigir_autenticacao(
-    authorization: str | None = Header(default=None),
+    request: Request,
     settings: Settings = Depends(obter_settings),
 ) -> str:
-    """Dependencia das rotas autenticadas. Devolve a identidade do usuario."""
-    token = token_do_header(authorization)
-    if token is None:
-        raise ApiError("unauthorized", 401)
-    return identidade_do_token(token, settings)
+    """Dependencia das rotas autenticadas. Devolve a identidade do usuario.
+
+    Reaproveita a validacao ja feita no middleware; nao revalida o token.
+    """
+    identidade = await resolver_identidade(request, settings)
+    if identidade is None:
+        raise getattr(request.state, "erro_de_autenticacao", None) or ApiError("unauthorized", 401)
+    return identidade

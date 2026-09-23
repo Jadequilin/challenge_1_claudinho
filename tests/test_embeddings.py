@@ -228,3 +228,14 @@ def test_cliente_e_servico_do_space_falam_o_mesmo_contrato(monkeypatch):
 
     assert vetor == [0.5] * 768
     assert saude == {"status": "ok", "modelo": "intfloat/multilingual-e5-base", "carregado": True}
+
+
+def test_matriz_token_a_token_e_recusada(monkeypatch, provedor_falso):
+    """Achado 12 do review: cada linha da matriz de tokens tambem tem 768 posicoes, entao
+    pegar a linha 0 passaria na checagem de dimensao e a busca usaria o embedding do
+    primeiro token em vez do da frase, sem erro e sem log."""
+    _usar(monkeypatch)
+    provedor_falso["resposta"] = [[0.1] * 768, [0.2] * 768, [0.3] * 768]
+
+    with pytest.raises(embeddings.EmbeddingsIndisponiveis, match="matriz por token"):
+        embeddings.gerar_embedding_consulta("ovo")

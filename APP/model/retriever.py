@@ -177,7 +177,7 @@ def formatar_contexto_cientifico(chunks: list[dict[str, object]]) -> str:
     for i, c in enumerate(chunks, 1):
         cid = c.get("chunk_id", f"chunk_{i}")
         titulo = c.get("titulo", "")
-        conteudo = c.get("conteudo", "").strip()
+        conteudo = (c.get("conteudo") or "").strip()
         bloco = f"[ID_CHUNK: {cid}]\n" f"Artigo: {titulo}\n" f"Conteudo: {conteudo}\n"
         blocos.append(bloco)
 
@@ -320,7 +320,10 @@ def detectar_e_comparar_tbca(
     # Deduplicar preservando termos encontrados
     achados: list[str] = []
     for cand in candidatos:
-        if cand in c:
+        # Limite de palavra: por substring, "alho" casava em "trabalho", "ovo" em "novo" e
+        # "pao" no fim de uma URL, e a pergunta era desviada para a TBCA sem nunca passar
+        # pelos estudos.
+        if re.search(rf"\b{re.escape(cand)}\b", c):
             base = (
                 cand.replace("á", "a")
                 .replace("ã", "a")
@@ -367,8 +370,10 @@ def detectar_e_comparar_tbca(
     ]
     tem_termo_nutricao = any(tn in c for tn in termos_nutricao)
 
-    # Caso 1: Comparacao entre 2 ou mais alimentos
-    if len(achados) >= 2:
+    # Caso 1: Comparacao entre 2 ou mais alimentos. Exige termo nutricional como o caso
+    # individual: citar dois alimentos nao quer dizer que a pergunta e sobre composicao
+    # ("posso comer arroz e feijao todo dia?" e duvida para os estudos, nao para a TBCA).
+    if len(achados) >= 2 and tem_termo_nutricao:
         item1 = buscar_alimento_tbca(achados[0])
         item2 = buscar_alimento_tbca(achados[1])
         if not item1 or not item2:

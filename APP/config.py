@@ -11,7 +11,11 @@ class Settings(BaseSettings):
 
     supabase_url: str
     supabase_key: str
-    app_env: str = "local"
+    # Padrao "production" DE PROPOSITO: esquecer a variavel no deploy tem que falhar
+    # FECHADO. Com o padrao "local", a API aceitaria qualquer token como identidade.
+    # O tipo Literal faz o pydantic recusar um valor escrito errado ("prod", "Local")
+    # na subida, em vez de cair silenciosamente fora do modo local.
+    app_env: Literal["local", "staging", "production"] = "production"
 
     # Segredo de assinatura dos JWTs do Supabase Auth (Project Settings > API > JWT Secret).
     # Obrigatorio fora do ambiente local; ver a trava em APP/auth.py:verificar_configuracao.
