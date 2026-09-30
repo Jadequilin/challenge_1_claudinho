@@ -32,11 +32,11 @@ const EXEMPLOS = [
 const ehUrl = (texto: string) => /^(https?:\/\/|www\.)\S+$/i.test(texto.trim());
 
 interface ImagemPreparada {
-  /** Só o conteúdo, sem o prefixo `data:`, que é o que a API espera em `image_base64`. */
+  /** Só o conteúdo, sem o prefixo `data:` */
   base64: string;
   /** Data URL para mostrar a miniatura na bolha. */
   previa: string;
-  /** Explicação curta do tamanho, ou da redução feita. */
+  /** Explicação do tamanho, ou da redução feita. */
   aviso: string;
 }
 
