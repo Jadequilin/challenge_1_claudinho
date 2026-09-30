@@ -105,7 +105,9 @@ export function Checar() {
   const [offline, setOffline] = useState(!navigator.onLine);
   const [instalacaoDispensada, setInstalacaoDispensada] = useState(ler('instalacaoDispensada'));
   const [promptInstalacao, setPromptInstalacao] = useState<any>(null);
-  const [estaInstalado, setEstaInstalado] = useState(() => window.matchMedia('(display-mode: standalone)').matches);
+  const [estaInstalado, setEstaInstalado] = useState(
+    () => window.matchMedia('(display-mode: standalone)').matches,
+  );
   const temPerfil = ler('perfil') !== null;
   const arquivoRef = useRef<HTMLInputElement>(null);
   const navegar = useNavigate();
