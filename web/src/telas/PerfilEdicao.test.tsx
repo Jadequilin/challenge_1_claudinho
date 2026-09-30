@@ -134,7 +134,7 @@ describe('PerfilEdicao', () => {
     expect(ler('perfil')).toBeNull();
   });
 
-  it('quando a API responde 400 invalid_input, a mensagem do erro aparece na tela e o perfil local não é alterado', async () => {
+  it('quando a API responde 400 invalid_input, mostra a mensagem do formulário e não altera o perfil local', async () => {
     const usuario = userEvent.setup({ delay: null });
 
     servidor.use(
@@ -161,12 +161,45 @@ describe('PerfilEdicao', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Salvar perfil' }));
 
-    // A mensagem da API aparece na tela
+    // O detalhe da API decide onde o erro aparece, mas o texto é o do formulário
     expect(
-      await screen.findByText('consent_health_data deve ser true para enviar condicoes de saude'),
+      await screen.findByText('Para salvar suas condições de saúde, marque a autorização acima.'),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText('consent_health_data deve ser true para enviar condicoes de saude'),
+    ).not.toBeInTheDocument();
 
     // Perfil local NÃO é alterado
+    expect(ler('perfil')).toBeNull();
+  });
+
+  it('bloqueia altura fora da faixa aceita pela API, mesmo com a validação nativa desligada', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    montar();
+
+    await usuario.click(screen.getByText('Altura e peso'));
+    await usuario.type(screen.getByLabelText('Altura (cm)'), '900');
+    await usuario.click(screen.getByRole('button', { name: 'Salvar perfil' }));
+
+    expect(
+      await screen.findByText('Informe a altura em centímetros, sem vírgula, entre 50 e 250.'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Altura (cm)')).toHaveFocus();
+    expect(ler('perfil')).toBeNull();
+  });
+
+  it('data de nascimento no futuro pede para conferir a data, não diz que é menor de idade', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    montar();
+
+    const ano = new Date().getFullYear() + 1;
+    await usuario.type(screen.getByLabelText(/Data de nascimento/i), `${ano}-01-01`);
+    await usuario.click(screen.getByRole('button', { name: 'Salvar perfil' }));
+
+    expect(
+      await screen.findByText('Essa data ainda não chegou. Confira o dia, o mês e o ano.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/menos de 18 anos/)).not.toBeInTheDocument();
     expect(ler('perfil')).toBeNull();
   });
 

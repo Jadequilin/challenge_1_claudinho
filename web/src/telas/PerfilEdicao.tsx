@@ -11,6 +11,22 @@ import type { Perfil, Rotina, Sexo } from '../lib/api/tipos';
 import { gravar, ler } from '../lib/armazenamento';
 import { CONDICOES, RESTRICOES, ROTINAS, SEXOS, idadeDe } from '../lib/perfil';
 
+const MENSAGEM_MENOR =
+  'Pela data informada, você tem menos de 18 anos. O Claudinho é só para maiores de idade.';
+const MENSAGEM_CONSENTIMENTO = 'Para salvar suas condições de saúde, marque a autorização acima.';
+
+/** Mesmos limites do schema da API (APP/schemas.py, Profile). */
+const ALTURA = { min: 50, max: 250 };
+const PESO = { min: 20, max: 400 };
+
+/** Hoje no fuso do aparelho, no formato do input de data (AAAA-MM-DD). */
+function hojeLocal(): string {
+  const agora = new Date();
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `${agora.getFullYear()}-${mes}-${dia}`;
+}
+
 /**
  * Formulário do perfil de saúde.
  *
@@ -45,10 +61,15 @@ export function PerfilEdicao() {
   const [erroNascimento, setErroNascimento] = useState<string | null>(null);
   const [erroConsentimento, setErroConsentimento] = useState<string | null>(null);
   const [erroGeral, setErroGeral] = useState<string | null>(null);
+  const [erroAltura, setErroAltura] = useState<string | null>(null);
+  const [erroPeso, setErroPeso] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const nascimentoRef = useRef<HTMLInputElement>(null);
   const consentRef = useRef<HTMLInputElement>(null);
+  const alturaRef = useRef<HTMLInputElement>(null);
+  const pesoRef = useRef<HTMLInputElement>(null);
+  const hoje = hojeLocal();
 
   function toggleCondicao(valor: string) {
     setConditions((anteriores) =>
@@ -74,26 +95,57 @@ export function PerfilEdicao() {
     setErroGeral(null);
     setErroNascimento(null);
     setErroConsentimento(null);
+    setErroAltura(null);
+    setErroPeso(null);
+
+    // Data no futuro daria idade negativa e cairia no aviso de menor de idade, que não é o
+    // caso. O `max` do campo limita o seletor nativo; esta checagem vale para qualquer entrada.
+    if (birthDate && birthDate > hoje) {
+      setErroNascimento('Essa data ainda não chegou. Confira o dia, o mês e o ano.');
+      nascimentoRef.current?.focus();
+      return;
+    }
 
     // Validação de Menor de 18 anos (Docs/Ethics/02 e LGPD Art. 14)
     const idade = idadeDe(birthDate);
     if (idade !== null && idade < 18) {
-      setErroNascimento(
-        'Pela data informada, você tem menos de 18 anos. O Claudinho é só para maiores de idade.',
-      );
+      setErroNascimento(MENSAGEM_MENOR);
       nascimentoRef.current?.focus();
       return;
     }
 
     // Consentimento da LGPD (Art. 5º, II): obrigatório quando houver condições de saúde
     if (conditions.length > 0 && !consentHealthData) {
-      setErroConsentimento('Para salvar suas condições de saúde, marque a autorização acima.');
+      setErroConsentimento(MENSAGEM_CONSENTIMENTO);
       consentRef.current?.focus();
       return;
     }
 
     const alturaNum = heightCm.trim() ? Number(heightCm) : null;
     const pesoNum = weightKg.trim() ? Number(weightKg) : null;
+
+    // Com o noValidate, o min e o max dos campos não seguram nada. Os limites são os do
+    // schema da API (APP/schemas.py), para o erro aparecer aqui e não como 400.
+    // Altura é inteira na API (height_cm: int): 170.5 também voltaria como 400.
+    const alturaValida =
+      alturaNum != null &&
+      Number.isInteger(alturaNum) &&
+      alturaNum >= ALTURA.min &&
+      alturaNum <= ALTURA.max;
+    if (alturaNum != null && !alturaValida) {
+      setAlturaPesoAberto(true);
+      setErroAltura(
+        `Informe a altura em centímetros, sem vírgula, entre ${ALTURA.min} e ${ALTURA.max}.`,
+      );
+      alturaRef.current?.focus();
+      return;
+    }
+    if (pesoNum != null && !(pesoNum >= PESO.min && pesoNum <= PESO.max)) {
+      setAlturaPesoAberto(true);
+      setErroPeso(`Informe o peso em quilos, entre ${PESO.min} e ${PESO.max}.`);
+      pesoRef.current?.focus();
+      return;
+    }
 
     const perfilAEnviar: Perfil = {
       sex: sex || 'nao_informado',
@@ -115,12 +167,13 @@ export function PerfilEdicao() {
       setSalvando(false);
       if (erro instanceof ErroDaApi) {
         if (erro.codigo === 'invalid_input') {
-          const detalhe = erro.detalhe ?? MENSAGEM_DE_ERRO.invalid_input;
-          if (detalhe.includes('consent_health_data')) {
-            setErroConsentimento(detalhe);
+          // O detalhe da API é para quem desenvolve ("consent_health_data deve ser true...").
+          // Serve para decidir onde mostrar o erro, não para ir para a tela.
+          if (erro.detalhe?.includes('consent_health_data')) {
+            setErroConsentimento(MENSAGEM_CONSENTIMENTO);
             consentRef.current?.focus();
           } else {
-            setErroGeral(detalhe);
+            setErroGeral('Algum dado do perfil não foi aceito. Confira os campos e tente de novo.');
           }
         } else {
           setErroGeral(MENSAGEM_DE_ERRO[erro.codigo] ?? MENSAGEM_DE_ERRO.desconhecido);
@@ -169,6 +222,7 @@ export function PerfilEdicao() {
                   name="birth_date"
                   rotulo="Data de nascimento"
                   type="date"
+                  max={hoje}
                   value={birthDate}
                   onChange={(e) => {
                     setBirthDate(e.target.value);
@@ -176,7 +230,7 @@ export function PerfilEdicao() {
                   }}
                   erro={erroNascimento ?? undefined}
                 />
-                {erroNascimento && (
+                {erroNascimento === MENSAGEM_MENOR && (
                   <div style={{ marginTop: 'calc(var(--s-2) * -1)' }}>
                     <Botao variante="discreta" pequeno onClick={() => navegar('/menor-de-idade')}>
                       Tenho menos de 18 anos
@@ -328,10 +382,15 @@ export function PerfilEdicao() {
                     rotulo="Altura (cm)"
                     type="number"
                     inputMode="numeric"
-                    min={50}
-                    max={250}
+                    ref={alturaRef}
+                    min={ALTURA.min}
+                    max={ALTURA.max}
                     value={heightCm}
-                    onChange={(e) => setHeightCm(e.target.value)}
+                    onChange={(e) => {
+                      setHeightCm(e.target.value);
+                      setErroAltura(null);
+                    }}
+                    erro={erroAltura ?? undefined}
                   />
                   <Campo
                     id="weight_kg"
@@ -339,10 +398,15 @@ export function PerfilEdicao() {
                     rotulo="Peso (kg)"
                     type="number"
                     inputMode="decimal"
-                    min={20}
-                    max={400}
+                    ref={pesoRef}
+                    min={PESO.min}
+                    max={PESO.max}
                     value={weightKg}
-                    onChange={(e) => setWeightKg(e.target.value)}
+                    onChange={(e) => {
+                      setWeightKg(e.target.value);
+                      setErroPeso(null);
+                    }}
+                    erro={erroPeso ?? undefined}
                   />
                 </div>
               </div>

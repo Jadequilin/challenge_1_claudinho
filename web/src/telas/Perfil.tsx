@@ -35,10 +35,12 @@ export function Perfil() {
     if (!avisoInicial) return;
     const temporizador = setTimeout(() => {
       setAviso(null);
-      window.history.replaceState({}, '');
+      // Limpa o aviso pelo proprio Router: um replaceState direto na window apaga a key e o
+      // idx que ele guarda em history.state, e as navegacoes seguintes ficam sem indice.
+      navegar('/perfil', { replace: true, state: null });
     }, 3000);
     return () => clearTimeout(temporizador);
-  }, [avisoInicial]);
+  }, [avisoInicial, navegar]);
 
   function trocarTema(novo: Tema) {
     definirTema(novo);
