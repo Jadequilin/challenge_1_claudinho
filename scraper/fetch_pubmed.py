@@ -1,15 +1,15 @@
 import os
 import sys
 import time
-import requests
 import xml.etree.ElementTree as ET
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, UTC
+
+import requests
 from supabase import create_client
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from ingerir_pdf import dividir_em_chunks, gerar_embeddings, gravar_chunks
-from supabase import create_client
 
 
 def get_supabase_client():
@@ -17,7 +17,8 @@ def get_supabase_client():
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")
     if not url or not key:
         print(
-            "Erro: SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_KEY) devem estar definidos."
+            "Erro: SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY "
+            "(ou SUPABASE_KEY) devem estar definidos."
         )
         exit(1)
     url = url.strip().rstrip("/").removesuffix("/rest/v1")
@@ -119,13 +120,15 @@ def main():
                 break  # Sucesso, sai do loop de tentativas
             except requests.exceptions.RequestException as e:
                 print(
-                    f"Aviso: Falha no lote {i // batch_size + 1} (tentativa {attempt + 1}/{max_retries}): {e}"
+                    f"Aviso: Falha no lote {i // batch_size + 1} "
+                    f"(tentativa {attempt + 1}/{max_retries}): {e}"
                 )
                 if attempt < max_retries - 1:
                     time.sleep(2**attempt)  # Exponential backoff (1s, 2s)
                 else:
                     print(
-                        f"Erro ao buscar detalhes do lote {i // batch_size + 1} após várias tentativas. Pulando."
+                        f"Erro ao buscar detalhes do lote {i // batch_size + 1} "
+                        "após várias tentativas. Pulando."
                     )
             except Exception as e:
                 print(f"Erro inesperado no lote {i // batch_size + 1}: {e}")
