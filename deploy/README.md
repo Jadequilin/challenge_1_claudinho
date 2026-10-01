@@ -29,7 +29,17 @@ https://huggingface.co/settings/billing. Se a cota não bastar, as saídas são 
 (US$ 9/mês, com excedente pago) ou o Space próprio de `deploy/embeddings-space`, que também
 exige PRO para ser criado.
 
-## 2. Space do Ollama
+## 2. LLM própria (opcional)
+
+Duas formas, e nenhuma está ligada hoje: o Gemini é o provedor em uso.
+
+- **VM na Azure** (`deploy/ollama-azure/README.md`): no ar, com HTTPS e token. Responde em
+  17 a 24 s, contra 2 a 3 s do Gemini, então ligá-la deixaria toda checagem lenta — o
+  README explica as duas saídas.
+- **Space do Hugging Face** (`deploy/ollama-space/README.md`): exige plano pago para criar
+  Spaces Docker.
+
+## 2b. Space do Ollama
 
 Siga `deploy/ollama-space/README.md` (já no ar pela Beatriz).
 
@@ -56,6 +66,7 @@ Siga `deploy/ollama-space/README.md` (já no ar pela Beatriz).
 | `LLM_API_KEY` | token de leitura do Hugging Face | Se o Space for privado |
 | `GEMINI_API_KEY` | chave do Gemini | Reserva do Ollama |
 | `ORIGENS_PERMITIDAS` | `["https://seu-projeto.vercel.app"]`, com colchetes e aspas duplas | **Sim**: sem ela, a API se recusa a subir fora do modo local |
+| `REPOSITORIOS` | `supabase` depois de rodar `deploy/sql/001_profiles_e_feedback.sql`; `memoria` só em desenvolvimento | Sim: em memória, perfil e feedback somem entre instâncias da Vercel |
 
 ### Conferindo
 

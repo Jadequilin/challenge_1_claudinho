@@ -6,7 +6,7 @@ from APP.config import obter_settings
 from APP.errors import registrar_handlers
 from APP.middleware import LoggingDeInferencia
 from APP.observabilidade import configurar_logging
-from APP.routers import check_claim, feedback, health, profile
+from APP.routers import check_claim, extract_claim, feedback, health, profile
 
 app = FastAPI(
     title="Claudinho — API de checagem de desinformacao nutricional",
@@ -36,9 +36,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
+    # Sem expose_headers, o navegador ENTREGA a resposta mas ESCONDE estes cabecalhos do
+    # JavaScript. Retry-After e o que a tela usa para dizer quanto falta quando o limite
+    # estoura (issue #20), e X-Trace-Id e o que o usuario informa ao reportar uma resposta.
+    expose_headers=["Retry-After", "X-Trace-Id"],
 )
 registrar_handlers(app)
 app.include_router(health.router)
 app.include_router(check_claim.router)
+app.include_router(extract_claim.router)
 app.include_router(feedback.router)
 app.include_router(profile.router)

@@ -75,6 +75,7 @@ Formato: JSON (`application/json`) · Autenticação: `Authorization: Bearer <JW
 | `POST` | `/feedback` | Obrigatória | Registra a avaliação do usuário sobre uma resposta (👍 / 👎 / reporte). |
 | `GET` | `/profile` | Obrigatória | Retorna o perfil de saúde do usuário. |
 | `PUT` | `/profile` | Obrigatória | Cria ou atualiza o perfil (usado pelos filtros de grupo de risco). |
+| `DELETE` | `/profile` | Obrigatória | Apaga o perfil de saúde. Responde 204 mesmo se não havia perfil (docs/Ethics/02, seção 4). |
 | `GET` | `/health` | Pública | *Liveness probe* para o provedor de hospedagem e o CI/CD. |
 
 ---
@@ -141,6 +142,7 @@ Aceita três modos de entrada mutuamente complementares: texto puro, URL de post
 | `400` | Payload inválido ou nenhum campo de entrada preenchido | `{"error": "invalid_input", "detail": "..."}` |
 | `401` | Token ausente ou expirado | `{"error": "unauthorized"}` |
 | `413` | Imagem acima de 5 MB | `{"error": "payload_too_large"}` |
+| `422` | Print ou link enviado sem texto: a API ainda não faz OCR nem lê páginas, e responder assim daria um veredito confiante sobre outro assunto | `{"error": "input_nao_suportado", "detail": "Ainda não conseguimos ler prints nem links..."}` |
 | `429` | Limite de requisições excedido | `{"error": "rate_limited", "retry_after": 42}` |
 | `503` | Provedor de LLM indisponível | `{"error": "upstream_unavailable"}` |
 
@@ -184,7 +186,7 @@ Expõe os campos definidos pela frente de Dados (sexo, altura, peso, doenças, i
 }
 ```
 
-> **LGPD:** dados de saúde são dados pessoais sensíveis (Art. 5º, II). O campo `consent_health_data` registra o consentimento explícito, e o `PUT` só persiste condições clínicas quando ele for `true`. O endpoint `DELETE /profile` (exclusão total) fica previsto para a versão pós-MVP.
+> **LGPD:** dados de saúde são dados pessoais sensíveis (Art. 5º, II). O campo `consent_health_data` registra o consentimento explícito, e o `PUT` só persiste condições clínicas quando ele for `true`. O `DELETE /profile` apaga tudo a pedido da pessoa, e perfis parados há 6 meses são expurgados automaticamente pelo banco — os dois exigidos por `docs/Ethics/02`, seção 4.
 
 ---
 
