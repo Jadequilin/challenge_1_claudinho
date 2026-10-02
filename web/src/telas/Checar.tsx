@@ -32,11 +32,11 @@ const EXEMPLOS = [
 const ehUrl = (texto: string) => /^(https?:\/\/|www\.)\S+$/i.test(texto.trim());
 
 interface ImagemPreparada {
-  /** Só o conteúdo, sem o prefixo `data:`, que é o que a API espera em `image_base64`. */
+  /** Só o conteúdo, sem o prefixo `data:` */
   base64: string;
   /** Data URL para mostrar a miniatura na bolha. */
   previa: string;
-  /** Explicação curta do tamanho, ou da redução feita. */
+  /** Explicação do tamanho, ou da redução feita. */
   aviso: string;
 }
 
@@ -104,6 +104,10 @@ export function Checar() {
   const [erroDaImagem, setErroDaImagem] = useState<string | null>(null);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [instalacaoDispensada, setInstalacaoDispensada] = useState(ler('instalacaoDispensada'));
+  const [promptInstalacao, setPromptInstalacao] = useState<any>(null);
+  const [estaInstalado, setEstaInstalado] = useState(
+    () => window.matchMedia('(display-mode: standalone)').matches,
+  );
   const temPerfil = ler('perfil') !== null;
   const arquivoRef = useRef<HTMLInputElement>(null);
   const navegar = useNavigate();
@@ -116,9 +120,22 @@ export function Checar() {
     const mudou = () => setOffline(!navigator.onLine);
     window.addEventListener('online', mudou);
     window.addEventListener('offline', mudou);
+
+    const media = window.matchMedia('(display-mode: standalone)');
+    const alterouDisplayMode = (e: MediaQueryListEvent) => setEstaInstalado(e.matches);
+    media.addEventListener('change', alterouDisplayMode);
+
+    const guardouPrompt = (e: Event) => {
+      e.preventDefault();
+      setPromptInstalacao(e);
+    };
+    window.addEventListener('beforeinstallprompt', guardouPrompt);
+
     return () => {
       window.removeEventListener('online', mudou);
       window.removeEventListener('offline', mudou);
+      media.removeEventListener('change', alterouDisplayMode);
+      window.removeEventListener('beforeinstallprompt', guardouPrompt);
     };
   }, []);
 
@@ -342,7 +359,7 @@ export function Checar() {
             </button>
           )}
 
-          {!instalacaoDispensada && (
+          {!instalacaoDispensada && !estaInstalado && (
             <section className="install" aria-labelledby="instalar">
               <div className="install-head">
                 <Smartphone aria-hidden="true" />
@@ -365,19 +382,37 @@ export function Checar() {
                   <X aria-hidden="true" />
                 </button>
               </div>
-              <details>
-                <summary>Como instalar</summary>
-                <ol>
-                  <li>
-                    <strong>Android (Chrome):</strong> toque no menu de três pontos e em Instalar
-                    app.
-                  </li>
-                  <li>
-                    <strong>iPhone (Safari):</strong> toque em Compartilhar e em Adicionar à Tela de
-                    Início. No iPhone, use Colar ou Enviar print para checar.
-                  </li>
-                </ol>
-              </details>
+              {promptInstalacao ? (
+                <div style={{ marginTop: '16px' }}>
+                  <Botao
+                    bloco
+                    variante="secundaria"
+                    onClick={async () => {
+                      promptInstalacao.prompt();
+                      const { outcome } = await promptInstalacao.userChoice;
+                      if (outcome === 'accepted') {
+                        setPromptInstalacao(null);
+                      }
+                    }}
+                  >
+                    Instalar aplicativo
+                  </Botao>
+                </div>
+              ) : (
+                <details>
+                  <summary>Como instalar</summary>
+                  <ol>
+                    <li>
+                      <strong>Android (Chrome):</strong> toque no menu de três pontos e em Instalar
+                      app.
+                    </li>
+                    <li>
+                      <strong>iPhone (Safari):</strong> toque em Compartilhar e em Adicionar à Tela
+                      de Início. No iPhone, use Colar ou Enviar print para checar.
+                    </li>
+                  </ol>
+                </details>
+              )}
             </section>
           )}
         </div>
