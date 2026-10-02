@@ -109,7 +109,7 @@ export function Checar() {
   const navegar = useNavigate();
   const { state } = useLocation();
   const [tempoEspera, setTempoEspera] = useState(
-    (state as { tentarEm?: number } | null)?.tentarEm ?? 0
+    (state as { tentarEm?: number } | null)?.tentarEm ?? 0,
   );
 
   useEffect(() => {
@@ -129,9 +129,8 @@ export function Checar() {
       setTempoEspera((tempoAtual) => Math.max(0, tempoAtual - 1));
     }, 1000);
     //limpa o intervalo quando o componente sair ou quando o tempo zerar
-    return ()=> clearInterval(intervalo);
+    return () => clearInterval(intervalo);
   }, [tempoEspera]);
-
 
   function checar(valor = texto) {
     const limpo = valor.trim();
@@ -303,7 +302,7 @@ export function Checar() {
                 {erroDaImagem}
               </p>
             )}
-            {tempoEspera > 0&& (
+            {tempoEspera > 0 && (
               <p className="field-error" role="alert">
                 Muitas checagens seguidas. Aguarde {tempoEspera} segundos para tentar de novo.
               </p>
@@ -386,11 +385,7 @@ export function Checar() {
 
       <div className="tela-rodape">
         <Botao bloco disabled={offline || tempoEspera > 0} onClick={() => checar()}>
-          {offline
-           ? 'Sem conexão' 
-           : tempoEspera > 0 
-           ? `Aguarde ${tempoEspera}s` 
-           : 'Checar'}
+          {offline ? 'Sem conexão' : tempoEspera > 0 ? `Aguarde ${tempoEspera}s` : 'Checar'}
         </Botao>
       </div>
     </div>
