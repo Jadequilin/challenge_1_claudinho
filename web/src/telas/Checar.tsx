@@ -8,7 +8,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Aviso } from '../componentes/Aviso';
 import { Botao } from '../componentes/Botao';
@@ -107,6 +107,10 @@ export function Checar() {
   const temPerfil = ler('perfil') !== null;
   const arquivoRef = useRef<HTMLInputElement>(null);
   const navegar = useNavigate();
+  const { state } = useLocation();
+  const [tempoEspera, setTempoEspera] = useState(
+    (state as { tentarEm?: number } | null)?.tentarEm ?? 0
+  );
 
   useEffect(() => {
     const mudou = () => setOffline(!navigator.onLine);
@@ -117,6 +121,17 @@ export function Checar() {
       window.removeEventListener('offline', mudou);
     };
   }, []);
+
+  // Contador regressivo: quando o tempo de espera é maior que 0, diminui 1 a cada segundo
+  useEffect(() => {
+    if (tempoEspera <= 0) return;
+    const intervalo = setInterval(() => {
+      setTempoEspera((tempoAtual) => Math.max(0, tempoAtual - 1));
+    }, 1000);
+    //limpa o intervalo quando o componente sair ou quando o tempo zerar
+    return ()=> clearInterval(intervalo);
+  }, [tempoEspera]);
+
 
   function checar(valor = texto) {
     const limpo = valor.trim();
@@ -288,6 +303,11 @@ export function Checar() {
                 {erroDaImagem}
               </p>
             )}
+            {tempoEspera > 0&& (
+              <p className="field-error" role="alert">
+                Muitas checagens seguidas. Aguarde {tempoEspera} segundos para tentar de novo.
+              </p>
+            )}
           </div>
 
           <section className="pilha-curta" aria-labelledby="exemplos">
@@ -365,8 +385,12 @@ export function Checar() {
       </main>
 
       <div className="tela-rodape">
-        <Botao bloco disabled={offline} onClick={() => checar()}>
-          {offline ? 'Sem conexão' : 'Checar'}
+        <Botao bloco disabled={offline || tempoEspera > 0} onClick={() => checar()}>
+          {offline
+           ? 'Sem conexão' 
+           : tempoEspera > 0 
+           ? `Aguarde ${tempoEspera}s` 
+           : 'Checar'}
         </Botao>
       </div>
     </div>
