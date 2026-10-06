@@ -22,6 +22,17 @@ export interface PedidoDeChecagem {
   use_profile?: boolean;
 }
 
+export interface PedidoDeExtracao {
+  text: string;
+}
+
+/** Extracao rapida, so com regras, para a tela de carregamento (issue #26). */
+export interface RespostaDeExtracao {
+  canonical_claim: string;
+  /** Verdadeiro quando a checagem vai terminar numa resposta de cuidado. */
+  safe_refusal: boolean;
+}
+
 export interface Fonte {
   chunk_id: string;
   title: string;
@@ -90,6 +101,8 @@ export interface Perfil {
 /** Codigos de erro do contrato (Docs/Production/01, secao 2.1). */
 export type CodigoDeErro =
   | 'invalid_input'
+  /** 422: print e link chegam na API, mas OCR e leitura de página ainda não existem. */
+  | 'input_nao_suportado'
   | 'unauthorized'
   | 'payload_too_large'
   | 'rate_limited'

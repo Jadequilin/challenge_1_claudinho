@@ -8,6 +8,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.venv-scraper
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
@@ -29,3 +30,7 @@ web/.vite/
 # Saidas dos benchmarks (geradas a cada execucao)
 bench*.json
 benchmark_*.json
+
+# Documentação (MkDocs)
+site/
+

@@ -13,9 +13,11 @@ import type {
   CodigoDeErro,
   CorpoDeErro,
   PedidoDeChecagem,
+  PedidoDeExtracao,
   PedidoDeFeedback,
   Perfil,
   RespostaDeChecagem,
+  RespostaDeExtracao,
   RespostaDeFeedback,
 } from './tipos';
 
@@ -49,6 +51,11 @@ export class ErroDaApi extends Error {
  */
 export const MENSAGEM_DE_ERRO: Record<CodigoDeErro, string> = {
   invalid_input: 'Escreva a dúvida, cole um link ou envie um print para eu checar.',
+  // A API recusa print e link desde o PR #15, de propósito: responder sem conseguir ler
+  // o conteúdo daria veredito confiante sobre o assunto errado. Enquanto OCR e leitura
+  // de página não existem, a tela diz o que dá para fazer agora.
+  input_nao_suportado:
+    'Ainda não consigo ler print nem link. Escreva a dúvida com suas palavras que eu checo.',
   // Enquanto a conta nao existe, nao da para pedir "entre de novo": nao ha onde entrar.
   // Troque este texto junto com a issue da sessao anonima.
   unauthorized: 'Não consegui confirmar sua sessão. Feche e abra o app para tentar de novo.',
@@ -116,6 +123,24 @@ export function checarAlegacao(
   return requisitar<RespostaDeChecagem>('/check-claim', {
     method: 'POST',
     body: JSON.stringify({ use_profile: true, ...pedido }),
+    signal: sinal,
+  });
+}
+
+/**
+ * Alegação como a API entendeu, em milissegundos: só regras, sem LLM nem banco.
+ *
+ * Serve para a tela de carregamento dizer "entendi assim" enquanto a checagem roda. O
+ * `canonical_claim` da checagem não serve para isso: ele chega junto da resposta, quando
+ * a espera já acabou.
+ */
+export function extrairAlegacao(
+  pedido: PedidoDeExtracao,
+  sinal?: AbortSignal,
+): Promise<RespostaDeExtracao> {
+  return requisitar<RespostaDeExtracao>('/extract-claim', {
+    method: 'POST',
+    body: JSON.stringify(pedido),
     signal: sinal,
   });
 }
