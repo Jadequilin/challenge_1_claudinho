@@ -94,10 +94,38 @@ function formatarTamanho(bytes: number): string {
  * compartilhamento direto do Instagram para um PWA, então Colar e Enviar print são o
  * caminho de lá (Docs/Design/design-system.md, secao 9).
  */
+/**
+ * Texto recebido do compartilhar do Android (issue #27).
+ *
+ * O manifest declara o app como destino de compartilhamento, e o Android abre a tela com
+ * `?text=...&url=...`. O link vira parte do texto, e nao um pedido do tipo `url`: a API
+ * ainda nao le pagina, e mandar como link so renderia um 422. Assim a pessoa ao menos ve
+ * o que compartilhou e pode escrever a duvida em volta.
+ */
+function textoCompartilhado(): string | null {
+  const parametros = new URLSearchParams(window.location.search);
+  const partes = [parametros.get('title'), parametros.get('text'), parametros.get('url')]
+    .filter((parte): parte is string => Boolean(parte?.trim()))
+    // O Android repete o link no "text" e no "url" em vários apps.
+    .filter((parte, indice, todas) => todas.indexOf(parte) === indice);
+
+  if (partes.length === 0) return null;
+  return partes.join(' ').slice(0, 2000);
+}
+
 export function Checar() {
   // Recupera o que a pessoa escreveu e não chegou a virar checagem, depois de um erro
   // ou de um cancelamento. O design system, seção 9, pede isso explicitamente.
-  const [texto, setTexto] = useState(() => ler('rascunho'));
+  const [texto, setTexto] = useState(() => textoCompartilhado() ?? ler('rascunho'));
+
+  // Limpa a URL para um F5 nao reabrir o mesmo compartilhamento por engano. Fica num
+  // efeito, e nao no inicializador do useState: o StrictMode chama o inicializador duas
+  // vezes, e limpar na primeira fazia a segunda cair no rascunho.
+  useEffect(() => {
+    if (window.location.search) {
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+    }
+  }, []);
   const [imagem, setImagem] = useState<ImagemPreparada | null>(null);
   /** Erro do campo de texto. Fica separado do erro da imagem para não pintar a borda errada. */
   const [erro, setErro] = useState<string | null>(null);

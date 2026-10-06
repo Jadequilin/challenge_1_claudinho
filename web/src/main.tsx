@@ -3,24 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 
 import { App } from './App';
-import { definirToken } from './lib/api/cliente';
+import { aguardarSessao } from './lib/api/cliente';
+import { iniciarSessao } from './lib/sessao';
 import { iniciarTema } from './lib/tema';
 import './estilos/claudinho.css';
 import './estilos/app.css';
-
-/**
- * Sessao provisória.
- *
- * A API exige `Authorization: Bearer`, e o login anônimo do Supabase ainda não existe no
- * backend (ver Docs/Design/design-system.md, secao 8.2). Até lá, o app manda um token de
- * desenvolvimento, que só o modo local da API aceita. Apontar para staging hoje devolve
- * 401 em toda chamada.
- *
- * Este valor NUNCA pode virar um token real: tudo que começa com `VITE_` é embutido no
- * bundle e fica legível para qualquer visitante. O token de verdade virá do
- * `signInAnonymously` em tempo de execução.
- */
-definirToken(import.meta.env.VITE_API_TOKEN ?? 'token-de-desenvolvimento');
 
 iniciarTema();
 
@@ -46,6 +33,11 @@ async function iniciar() {
       console.error('Mock da API não iniciou. O app vai tentar falar com a API de verdade.', erro);
     }
   }
+
+  // Sem `await`: a primeira abertura depende de uma ida ao Supabase, e esperar por ela
+  // antes de montar deixaria a pessoa olhando tela branca em rede lenta. O app aparece na
+  // hora e a camada de rede segura a primeira requisição até o token chegar (issue #23).
+  aguardarSessao(iniciarSessao());
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
