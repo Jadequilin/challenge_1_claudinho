@@ -76,7 +76,33 @@ export function definirToken(novo: string | null): void {
   token = novo;
 }
 
+/**
+ * Quanto a primeira requisição espera a sessão anônima ficar pronta. O app monta sem
+ * esperar o Supabase (tela branca em rede lenta é pior que qualquer erro), então é aqui
+ * que a checagem aguarda o token. Passado o limite, segue sem ele e a tela mostra a
+ * mensagem de sessão, em vez de ficar carregando para sempre.
+ */
+const LIMITE_DA_SESSAO_MS = 8000;
+
+let sessaoPronta: Promise<unknown> = Promise.resolve();
+
+export function aguardarSessao(pronta: Promise<unknown>): void {
+  sessaoPronta = pronta.catch(() => undefined);
+}
+
+async function esperarSessao(): Promise<void> {
+  let relogio: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    sessaoPronta,
+    new Promise((resolver) => {
+      relogio = setTimeout(resolver, LIMITE_DA_SESSAO_MS);
+    }),
+  ]);
+  clearTimeout(relogio);
+}
+
 async function requisitar<T>(caminho: string, init: RequestInit = {}): Promise<T> {
+  await esperarSessao();
   let resposta: Response;
 
   try {

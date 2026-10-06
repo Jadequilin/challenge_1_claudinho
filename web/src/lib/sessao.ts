@@ -19,6 +19,7 @@ import { definirToken } from './api/cliente';
  */
 
 let cliente: SupabaseClient | null = null;
+let ouvindo = false;
 
 export function clienteDoSupabase(): SupabaseClient | null {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -46,25 +47,31 @@ export async function iniciarSessao(): Promise<void> {
 
   // O token expira em cerca de uma hora e o SDK o renova sozinho. Ouvir o evento é o que
   // mantém a camada de rede com o token novo: sem isto, o app funcionaria por uma hora e
-  // depois começaria a receber 401 sem motivo aparente.
-  supabase.auth.onAuthStateChange((_evento, sessao) => {
-    definirToken(sessao?.access_token ?? null);
-  });
-
-  const { data } = await supabase.auth.getSession();
-  if (data.session) {
-    definirToken(data.session.access_token);
-    return;
+  // depois começaria a receber 401 sem motivo aparente. Registrado uma vez só: o `sair()`
+  // chama esta função de novo, e cada chamada acumularia mais um ouvinte.
+  if (!ouvindo) {
+    ouvindo = true;
+    supabase.auth.onAuthStateChange((_evento, sessao) => {
+      definirToken(sessao?.access_token ?? null);
+    });
   }
 
-  const { data: nova, error } = await supabase.auth.signInAnonymously();
-  if (error) {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+      definirToken(data.session.access_token);
+      return;
+    }
+
+    const { data: nova, error } = await supabase.auth.signInAnonymously();
     // Sem sessão, a API responde 401 e a tela mostra a mensagem de sessão. Deixar o app
-    // subir mesmo assim é melhor do que uma tela branca: o histórico local continua lá.
+    // seguir mesmo assim é melhor do que uma tela branca: o histórico local continua lá.
+    definirToken(error ? null : (nova.session?.access_token ?? null));
+  } catch {
+    // Rede caída ou SDK lançando em vez de devolver `error`: mesmo tratamento, a falha de
+    // sessão nunca pode travar o app (issue #23).
     definirToken(null);
-    return;
   }
-  definirToken(nova.session?.access_token ?? null);
 }
 
 /** Resultado das operações de conta: a tela só precisa saber se deu certo e o que dizer. */

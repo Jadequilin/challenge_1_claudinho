@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 
 import { App } from './App';
+import { aguardarSessao } from './lib/api/cliente';
 import { iniciarSessao } from './lib/sessao';
 import { iniciarTema } from './lib/tema';
 import './estilos/claudinho.css';
@@ -33,9 +34,10 @@ async function iniciar() {
     }
   }
 
-  // Antes de montar: sem token, a primeira checagem já sairia com 401. O login é anônimo,
-  // então não há tela de espera para a pessoa (issue #23).
-  await iniciarSessao();
+  // Sem `await`: a primeira abertura depende de uma ida ao Supabase, e esperar por ela
+  // antes de montar deixaria a pessoa olhando tela branca em rede lenta. O app aparece na
+  // hora e a camada de rede segura a primeira requisição até o token chegar (issue #23).
+  aguardarSessao(iniciarSessao());
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

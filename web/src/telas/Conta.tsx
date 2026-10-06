@@ -8,12 +8,15 @@ import { Campo } from '../componentes/Campo';
 import { criarConta, emailDaConta, entrar, sair } from '../lib/sessao';
 
 const SENHA_MINIMA = 8;
+/** Um @, algo antes, e um domínio com ponto depois. A confirmação de verdade é o e-mail. */
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Criar conta ou entrar, sempre opcional (issue #24).
  *
  * A conta não é exigida para checar: o app já funciona com sessão anônima. Ela serve para
- * levar perfil e checagens para outro aparelho.
+ * entrar de novo na mesma identidade. Perfil e histórico ainda ficam no aparelho
+ * (o perfil passa a vir da API com a issue #22).
  *
  * **Criar conta promove a sessão anônima**, em vez de abrir outra: o id do usuário continua
  * o mesmo, então o perfil de saúde já preenchido continua sendo dele. É por isso que a tela
@@ -28,6 +31,8 @@ export function Conta() {
   const [senha, setSenha] = useState('');
   const [modo, setModo] = useState<'criar' | 'entrar'>('criar');
   const [erro, setErro] = useState<string | null>(null);
+  const [erroDoEmail, setErroDoEmail] = useState<string | undefined>();
+  const [erroDaSenha, setErroDaSenha] = useState<string | undefined>();
   const [enviando, setEnviando] = useState(false);
   const [emailAtual, setEmailAtual] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -47,14 +52,15 @@ export function Conta() {
   async function enviar() {
     setErro(null);
 
-    if (!email.includes('@')) {
-      setErro('Escreva um email válido, como nome@exemplo.com.');
-      return;
-    }
-    if (senha.length < SENHA_MINIMA) {
-      setErro(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
-      return;
-    }
+    // Erro de preenchimento fica no próprio campo (issue #24); o Aviso geral é para o que
+    // volta do Supabase.
+    const emailInvalido = !EMAIL.test(email.trim());
+    const senhaCurta = senha.length < SENHA_MINIMA;
+    setErroDoEmail(emailInvalido ? 'Escreva um email válido, como nome@exemplo.com.' : undefined);
+    setErroDaSenha(
+      senhaCurta ? `A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.` : undefined,
+    );
+    if (emailInvalido || senhaCurta) return;
 
     setEnviando(true);
     const resultado =
@@ -96,9 +102,7 @@ export function Conta() {
         {carregando ? null : emailAtual ? (
           <>
             <h1 className="h2">Você está na conta {emailAtual}</h1>
-            <p className="small">
-              Seu perfil e suas checagens acompanham essa conta em qualquer aparelho.
-            </p>
+            <p className="small">O histórico e o perfil ainda ficam guardados só neste aparelho.</p>
             <Botao variante="secundaria" onClick={() => void encerrar()} disabled={enviando}>
               Sair da conta
             </Botao>
@@ -108,7 +112,7 @@ export function Conta() {
             <h1 className="h2">{modo === 'criar' ? 'Criar conta' : 'Entrar'}</h1>
             <p className="small">
               {modo === 'criar'
-                ? 'Opcional. A conta guarda o que você já preencheu aqui e leva para outros aparelhos.'
+                ? 'Opcional. A conta guarda a identidade que você já usa aqui.'
                 : 'Ao entrar numa conta que já existe, o que está guardado só neste aparelho fica para trás.'}
             </p>
 
@@ -120,6 +124,7 @@ export function Conta() {
               autoComplete="email"
               inputMode="email"
               value={email}
+              erro={erroDoEmail}
               onChange={(evento) => setEmail(evento.target.value)}
             />
             <Campo
@@ -128,6 +133,7 @@ export function Conta() {
               autoComplete={modo === 'criar' ? 'new-password' : 'current-password'}
               ajuda={modo === 'criar' ? `Pelo menos ${SENHA_MINIMA} caracteres.` : undefined}
               value={senha}
+              erro={erroDaSenha}
               onChange={(evento) => setSenha(evento.target.value)}
             />
 
@@ -140,6 +146,8 @@ export function Conta() {
               onClick={() => {
                 setModo(modo === 'criar' ? 'entrar' : 'criar');
                 setErro(null);
+                setErroDoEmail(undefined);
+                setErroDaSenha(undefined);
               }}
             >
               {modo === 'criar' ? 'Já tenho conta' : 'Quero criar uma conta'}
