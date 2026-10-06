@@ -40,6 +40,11 @@ export default defineConfig(() => {
           // não existe: declarado sem handler, o compartilhamento do Android cai num POST
           // que ninguém atende. Ver a issue "Receber print e link pelo compartilhar".
         },
+        workbox: {
+          // O worker do MSW só serve ao modo de desenvolvimento com mock. Sem esta linha
+          // ele é pré-carregado no app publicado: peso inútil no primeiro acesso.
+          globIgnores: ['**/mockServiceWorker.js'],
+        },
         devOptions: { enabled: false },
       }),
     ],
