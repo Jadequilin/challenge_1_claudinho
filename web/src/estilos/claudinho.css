@@ -1168,6 +1168,9 @@ button.row:active {
 .historico-entrada {
   font-weight: 600;
   /* Duas linhas no maximo: a entrada e texto livre e pode ser longa. */
+  /* `anywhere` por causa do compartilhar do Android (issue #27): link nao tem espaco para
+     quebrar, e sem isto ele empurra a tela para o lado em 375 px. */
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
