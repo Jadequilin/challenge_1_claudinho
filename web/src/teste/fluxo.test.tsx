@@ -125,9 +125,20 @@ describe('fluxo de checagem', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Checar' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Escreva a dúvida, cole um link ou envie um print',
-    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Escreva a dúvida com suas palavras');
+  });
+
+  it('não oferece enviar print enquanto a API não lê imagem', () => {
+    abrirApp();
+
+    expect(screen.queryByRole('button', { name: /enviar print/i })).not.toBeInTheDocument();
+  });
+
+  it('o convite de instalação não promete aparecer no compartilhar de outros apps', () => {
+    abrirApp();
+
+    expect(screen.getByText('Instale na tela inicial')).toBeInTheDocument();
+    expect(screen.queryByText(/compartilhar do instagram/i)).not.toBeInTheDocument();
   });
 });
 
@@ -136,14 +147,31 @@ describe('entradas que a API ainda não lê', () => {
     gravar('onboarded', true);
   });
 
-  it('explica que print e link ainda não dão para checar, em vez de erro genérico', async () => {
+  it('recusa link sozinho na hora, sem passar pela tela de espera', async () => {
     const usuario = userEvent.setup({ delay: null });
     abrirApp();
 
     await usuario.type(screen.getByLabelText(/sua dúvida/i), 'https://www.instagram.com/reel/abc');
     await usuario.click(screen.getByRole('button', { name: 'Checar' }));
 
-    // O PR #15 passou a recusar com 422 `input_nao_suportado`, em vez de responder errado.
-    expect(await screen.findByText(/Ainda não consigo ler print nem link/)).toBeInTheDocument();
+    // A API responde 422 para link (PR #15). Antes a pessoa esperava o carregamento para
+    // ler isso; agora o aviso sai na própria tela, com o que fazer.
+    expect(screen.getByRole('alert')).toHaveTextContent('Cole o texto do post');
+    expect(screen.getByRole('heading', { name: 'O que você viu por aí?' })).toBeInTheDocument();
+  });
+
+  it('link junto de texto não é só link e segue para a checagem', async () => {
+    const usuario = userEvent.setup({ delay: null });
+    abrirApp();
+
+    await usuario.type(
+      screen.getByLabelText(/sua dúvida/i),
+      'Vi isso aqui: https://www.instagram.com/reel/abc gelatina é colágeno?',
+    );
+    await usuario.click(screen.getByRole('button', { name: 'Checar' }));
+
+    expect(
+      screen.queryByRole('heading', { name: 'O que você viu por aí?' }),
+    ).not.toBeInTheDocument();
   });
 });

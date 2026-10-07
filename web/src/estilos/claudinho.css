@@ -1136,71 +1136,22 @@ button.row:active {
 }
 
 /* ---------- Historico (issue #18) ---------- */
+/* A lista usa .rows e .row, como o prototipo. Cada .row fica sozinha dentro do seu <li>,
+   entao o `.row:last-child` tiraria o fio de todas: aqui o fio volta para todas menos a
+   ultima da lista. */
 .historico {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-
-.historico-item {
-  display: flex;
-  align-items: stretch;
-  gap: var(--s-2);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
+.historico > li:not(:last-child) > .row {
+  border-bottom: 1px solid var(--c-line);
 }
-
-.historico-abrir {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: var(--s-3);
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
 .historico-entrada {
-  font-weight: 600;
-  /* Duas linhas no maximo: a entrada e texto livre e pode ser longa. */
-  /* `anywhere` por causa do compartilhar do Android (issue #27): link nao tem espaco para
-     quebrar, e sem isto ele empurra a tela para o lado em 375 px. */
-  overflow-wrap: anywhere;
+  /* Duas linhas no maximo: a entrada e texto livre e pode ser longa (um link inteiro
+     ou 300 caracteres). O .row-title ja quebra palavra longa com overflow-wrap. */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.historico-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--c-ink-soft);
-}
-
-.historico-meta svg {
-  width: 16px;
-  height: 16px;
-}
-
-.historico-apagar {
-  display: grid;
-  place-items: center;
-  /* 44 px: alvo minimo de toque do design system. */
-  min-width: 44px;
-  border: 0;
-  border-radius: 0 var(--r-md) var(--r-md) 0;
-  background: none;
-  color: var(--c-ink-soft);
-  cursor: pointer;
-}
-
-.historico-apagar:hover {
-  color: var(--c-danger, var(--c-ink));
 }

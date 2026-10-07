@@ -317,6 +317,10 @@ body,
   justify-content: space-between;
   gap: var(--s-2);
 }
+/* Com um link só (o "Já tenho conta" desligado), o space-between o jogaria para a esquerda. */
+.rodape-links > :only-child {
+  margin-inline: auto;
+}
 
 /* Convite para instalar na tela inicial. Some quando a pessoa dispensa. */
 .install {

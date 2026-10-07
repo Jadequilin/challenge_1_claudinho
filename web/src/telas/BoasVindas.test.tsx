@@ -51,4 +51,13 @@ describe('BoasVindas', () => {
 
     expect(ler('onboarded')).toBe(true);
   });
+
+  it('não oferece entrar numa conta enquanto a criação de conta está desligada', () => {
+    montar();
+
+    // Sem SMTP próprio o link de confirmação não chega a quem é de fora da equipe
+    // (CONTA_DISPONIVEL, em lib/sessao.ts). A saída para menor de idade continua.
+    expect(screen.queryByRole('button', { name: 'Já tenho conta' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tenho menos de 18' })).toBeInTheDocument();
+  });
 });

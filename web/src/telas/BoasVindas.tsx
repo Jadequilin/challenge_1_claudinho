@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Botao } from '../componentes/Botao';
 import { gravar } from '../lib/armazenamento';
+import { CONTA_DISPONIVEL } from '../lib/sessao';
 
 /**
  * Primeiro acesso.
@@ -70,8 +71,8 @@ export function BoasVindas() {
             <span className="wordmark">claudinho</span>
             <h1 className="hero-title">Viu algo sobre comida na internet e bateu a dúvida?</h1>
             <p>
-              Me manda o post, o print ou a pergunta. Eu checo nos estudos científicos brasileiros e
-              te explico sem complicar.
+              Me manda o post ou a pergunta. Eu checo nos estudos científicos brasileiros e te
+              explico sem complicar.
             </p>
             <p className="hero-nota">
               <Zap aria-hidden="true" />
@@ -118,9 +119,11 @@ export function BoasVindas() {
               Começar a checar
             </Botao>
             <div className="rodape-links">
-              <Botao variante="discreta" pequeno onClick={() => navegar('/conta')}>
-                Já tenho conta
-              </Botao>
+              {CONTA_DISPONIVEL && (
+                <Botao variante="discreta" pequeno onClick={() => navegar('/conta')}>
+                  Já tenho conta
+                </Botao>
+              )}
               <Botao variante="discreta" pequeno onClick={() => navegar('/menor-de-idade')}>
                 Tenho menos de 18
               </Botao>

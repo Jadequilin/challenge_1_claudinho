@@ -74,6 +74,19 @@ export async function iniciarSessao(): Promise<void> {
   }
 }
 
+/**
+ * Entradas da tela de conta (Perfil e boas-vindas). Desligadas por dois motivos:
+ *
+ * 1. Para usuário anônimo, o Supabase só aceita senha depois de o e-mail ser confirmado:
+ *    primeiro `updateUser({ email })`, a pessoa abre o link, e só então
+ *    `updateUser({ password })`. O `criarConta` daqui ainda manda os dois de uma vez.
+ * 2. Sem SMTP próprio, o Supabase só entrega e-mail para quem é da equipe do projeto, até
+ *    2 por hora. Qualquer outra pessoa nunca receberia o link de confirmação.
+ *
+ * Religar exige os dois: SMTP configurado no painel e o fluxo em duas etapas.
+ */
+export const CONTA_DISPONIVEL = false;
+
 /** Resultado das operações de conta: a tela só precisa saber se deu certo e o que dizer. */
 export type ResultadoDaConta = { ok: true } | { ok: false; mensagem: string };
 
