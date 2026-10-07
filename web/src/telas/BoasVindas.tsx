@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Botao } from '../componentes/Botao';
 import { gravar } from '../lib/armazenamento';
+import { CONTA_DISPONIVEL } from '../lib/sessao';
 
 /**
  * Primeiro acesso.
@@ -118,9 +119,11 @@ export function BoasVindas() {
               Começar a checar
             </Botao>
             <div className="rodape-links">
-              <Botao variante="discreta" pequeno onClick={() => navegar('/conta')}>
-                Já tenho conta
-              </Botao>
+              {CONTA_DISPONIVEL && (
+                <Botao variante="discreta" pequeno onClick={() => navegar('/conta')}>
+                  Já tenho conta
+                </Botao>
+              )}
               <Botao variante="discreta" pequeno onClick={() => navegar('/menor-de-idade')}>
                 Tenho menos de 18
               </Botao>
