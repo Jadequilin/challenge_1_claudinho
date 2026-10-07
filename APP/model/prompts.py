@@ -122,15 +122,32 @@ Responda ESTRITAMENTE em formato JSON com a seguinte estrutura:
 }
 """
 
+# A v2 com um campo a mais. Sem ele, quando a busca trazia estudos que nao tratam da
+# pergunta, o modelo escrevia "os estudos nao trazem informacoes sobre isso" e ainda assim
+# devolvia um risk_score, que virava "Pode confiar" ou "E mito" no cartao. Com o campo
+# falso, o gerador devolve `sem_evidencia` e ignora o score.
+_FORMATO_V2 = 'Responda só com JSON: {"answer": "texto da resposta", "risk_score": 0.8}\n'
+SISTEMA_RAG_V2_2 = SISTEMA_RAG_V2.replace(
+    _FORMATO_V2,
+    """evidencia_suficiente é true quando os estudos tratam do que a pessoa perguntou, e \
+false quando não tratam. Com false, o risk_score não vale: não escolha verdadeiro nem mito \
+sem estudo que sustente.
+
+Responda só com JSON: {"answer": "texto da resposta", "risk_score": 0.8, \
+"evidencia_suficiente": true}
+""",
+)
+
 VERSOES = {
     "rag-v1.0": (SISTEMA_RAG_V1, "contexto_cientifico"),
     "rag-v2.0": (SISTEMA_RAG_V2, "estudos"),
     "rag-v2.1": (SISTEMA_RAG_V2_1, "estudos"),
+    "rag-v2.2": (SISTEMA_RAG_V2_2, "estudos"),
 }
 
 # Lidas em tempo de execucao pelo gerador (nao importadas como constante), para o script
 # de comparacao conseguir trocar a versao ativa.
-VERSAO_ATIVA = "rag-v2.0"
+VERSAO_ATIVA = "rag-v2.2"
 
 
 def ativo() -> tuple[str, str, str]:
