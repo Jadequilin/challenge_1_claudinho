@@ -54,8 +54,11 @@ def executar_pipeline_de_checagem(
         [texto_entrada, *(perfil.conditions if perfil and perfil.conditions else [])]
     )
     # Perfil de saude no prompt e dado sensivel: nao pode ir para provedor externo
-    # (Docs/Ethics/02). O generator usa isto para escolher o provedor.
-    dados_sensiveis = bool(perfil and perfil.conditions)
+    # (Docs/Ethics/02). Hoje o perfil so decide os avisos acima, montados aqui mesmo, e
+    # NAO entra no prompt (generator.gerar_resposta_grounded). Por isso a geracao nao e
+    # sensivel e pode ir ao Gemini. Se o perfil passar a entrar no prompt, isto volta a
+    # ser `bool(perfil and perfil.conditions)`.
+    dados_sensiveis = False
     pergunta_amigavel = reformular_pergunta_amigavel(texto_entrada)
 
     # 0. Menor de 18 anos: recusa de servico (Docs/Ethics/02, LGPD Art. 14). Vem antes de

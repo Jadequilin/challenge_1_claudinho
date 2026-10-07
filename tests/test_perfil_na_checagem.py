@@ -66,13 +66,31 @@ def test_perfil_so_entra_quando_o_app_pede(client):
     assert disclaimers.CONDICOES_CLINICAS not in resposta.json()["disclaimer"]
 
 
-def test_perfil_com_condicao_marca_a_geracao_como_sensivel(client, geracao_espiada):
-    """Docs/Ethics/02: dado de saude nao vai para provedor externo."""
+def test_condicao_do_perfil_nao_vai_para_o_prompt(client, geracao_espiada, monkeypatch):
+    """Docs/Ethics/02: dado de saude nao vai para provedor externo.
+
+    O perfil so decide os avisos, montados na propria API. Como ele nao entra no prompt,
+    a geracao nao e marcada como sensivel e pode usar o Gemini.
+    """
+    from APP.model import generator
+
+    prompts_enviados = []
+    original = generator.gerar_json
+
+    def espiao(sistema, usuario, *args, **kwargs):
+        prompts_enviados.append(sistema + usuario)
+        return original(sistema, usuario, *args, **kwargs)
+
+    monkeypatch.setattr(generator, "gerar_json", espiao)
     _guardar(Profile(conditions=["diabetes_tipo_2"], consent_health_data=True))
 
-    client.post(ROTA, headers=AUTH, json=PERGUNTA)
+    resposta = client.post(ROTA, headers=AUTH, json=PERGUNTA)
 
-    assert geracao_espiada[-1]["dados_sensiveis"] is True
+    assert prompts_enviados, "a geracao precisa ter sido chamada para o teste valer"
+    assert all("diabetes" not in prompt for prompt in prompts_enviados)
+    assert geracao_espiada[-1]["dados_sensiveis"] is False
+    # O aviso continua saindo do perfil, localmente.
+    assert disclaimers.CONDICOES_CLINICAS in resposta.json()["disclaimer"]
 
 
 def test_sem_perfil_a_geracao_nao_e_sensivel(client, geracao_espiada):
