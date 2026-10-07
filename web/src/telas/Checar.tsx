@@ -15,6 +15,21 @@ import { Botao } from '../componentes/Botao';
 import type { PedidoDeChecagem } from '../lib/api/tipos';
 import { gravar, ler } from '../lib/armazenamento';
 
+/**
+ * Envio de print desligado ate a API ler imagem. Hoje ela recusa com 422
+ * `input_nao_suportado`, porque o OCR nao existe: mostrar o botao fazia a pessoa escolher a
+ * imagem, esperar e so entao ler que nao da. O codigo fica para quando a leitura existir.
+ */
+const PRINT_DISPONIVEL = false;
+
+/**
+ * Link pelo mesmo motivo: a API ainda nao le pagina e responde 422. Com isto desligado, um
+ * link colado sozinho e recusado aqui mesmo, antes da tela de espera, com o caminho que
+ * funciona: colar o texto do post. Link junto de texto (o compartilhar do Android faz isso)
+ * nao e "so link" e segue normal.
+ */
+const LINK_DISPONIVEL = false;
+
 /** Limite do contrato para imagem (Docs/Production/01, secao 2.1). */
 const MAXIMO_DA_IMAGEM = 5 * 1024 * 1024;
 
@@ -90,9 +105,9 @@ function formatarTamanho(bytes: number): string {
 /**
  * Tela inicial: a pessoa manda a dúvida do jeito que ela chegou.
  *
- * As três entradas ficam sempre visíveis de propósito. No iPhone não existe o
- * compartilhamento direto do Instagram para um PWA, então Colar e Enviar print são o
- * caminho de lá (Docs/Design/design-system.md, secao 9).
+ * Hoje a entrada que funciona é texto: print e link estão desligados até a API ler imagem
+ * e página (PRINT_DISPONIVEL e LINK_DISPONIVEL). Colar fica sempre visível porque é o
+ * caminho para trazer o texto de um post (Docs/Design/design-system.md, secao 9).
  */
 /**
  * Texto recebido do compartilhar do Android (issue #27).
@@ -181,7 +196,12 @@ export function Checar() {
     const limpo = valor.trim();
 
     if (!limpo && !imagem) {
-      setErro('Escreva a dúvida, cole um link ou envie um print para eu checar.');
+      setErro('Escreva a dúvida com suas palavras para eu checar.');
+      return;
+    }
+
+    if (!LINK_DISPONIVEL && !imagem && ehUrl(limpo)) {
+      setErro('Ainda não consigo abrir links. Cole o texto do post ou escreva a dúvida.');
       return;
     }
 
@@ -245,7 +265,7 @@ export function Checar() {
         <div className="pilha">
           <div className="pilha-curta">
             <h1 className="h1">O que você viu por aí?</h1>
-            <p className="lede">Manda do jeito que chegou para você: texto, link ou print.</p>
+            <p className="lede">Escreva com suas palavras ou cole o texto do post.</p>
           </div>
 
           {offline && (
@@ -257,12 +277,12 @@ export function Checar() {
           <div className="pilha-curta">
             <div className={`composer${erro ? ' is-invalid' : ''}`}>
               <label className="sr-only" htmlFor="duvida">
-                Sua dúvida, link ou texto do post
+                Sua dúvida ou texto do post
               </label>
               <textarea
                 id="duvida"
                 value={texto}
-                placeholder="Cole um link ou escreva a dúvida com suas palavras"
+                placeholder="Escreva a dúvida ou cole o texto do post"
                 aria-invalid={erro ? true : undefined}
                 aria-describedby="erro-da-duvida"
                 onChange={(evento) => {
@@ -294,15 +314,17 @@ export function Checar() {
                   <ClipboardPaste aria-hidden="true" />
                   Colar
                 </Botao>
-                <Botao
-                  variante="secundaria"
-                  pequeno
-                  type="button"
-                  onClick={() => arquivoRef.current?.click()}
-                >
-                  <ImagePlus aria-hidden="true" />
-                  Enviar print
-                </Botao>
+                {PRINT_DISPONIVEL && (
+                  <Botao
+                    variante="secundaria"
+                    pequeno
+                    type="button"
+                    onClick={() => arquivoRef.current?.click()}
+                  >
+                    <ImagePlus aria-hidden="true" />
+                    Enviar print
+                  </Botao>
+                )}
                 {/* A região viva fica sempre no DOM: criada junto com o conteúdo, ela
                     normalmente não é anunciada pelo leitor de tela. */}
                 <span className="detected" aria-live="polite">
@@ -322,8 +344,9 @@ export function Checar() {
               </div>
             </div>
 
-            {/* Fora do fluxo de tabulação e escondido do leitor de tela de propósito: quem
-                opera este campo é o botão "Enviar print", que tem rótulo e foco próprios. */}
+            {/* Dormente enquanto PRINT_DISPONIVEL for false: quem abre este campo é o botão
+                "Enviar print", que hoje não aparece. Fica fora do fluxo de tabulação e
+                escondido do leitor de tela de propósito, porque o botão tem rótulo e foco. */}
             <input
               ref={arquivoRef}
               type="file"
@@ -396,7 +419,7 @@ export function Checar() {
                     Instale na tela inicial
                   </h2>
                   <p className="small muted">
-                    No Android, o Claudinho aparece no botão Compartilhar do Instagram e do TikTok.
+                    Fica na tela do celular como um app, pronto para checar.
                   </p>
                 </div>
                 <button
@@ -436,7 +459,7 @@ export function Checar() {
                     </li>
                     <li>
                       <strong>iPhone (Safari):</strong> toque em Compartilhar e em Adicionar à Tela
-                      de Início. No iPhone, use Colar ou Enviar print para checar.
+                      de Início. No iPhone, use Colar para checar.
                     </li>
                   </ol>
                 </details>
