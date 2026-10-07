@@ -36,9 +36,14 @@ export default defineConfig(() => {
               purpose: 'maskable',
             },
           ],
-          // O `share_target` entra junto com o handler de POST no service worker, que ainda
-          // não existe: declarado sem handler, o compartilhamento do Android cai num POST
-          // que ninguém atende. Ver a issue "Receber print e link pelo compartilhar".
+          // Texto e link chegam por GET, que nao precisa de handler no service worker: o
+          // Android abre `/?title=&text=&url=` e a tela Checar le os parametros (issue #27).
+          // Receber o print (arquivo) exige POST com handler, que ainda nao existe.
+          share_target: {
+            action: '/',
+            method: 'GET',
+            params: { title: 'title', text: 'text', url: 'url' },
+          },
         },
         workbox: {
           // O worker do MSW só serve ao modo de desenvolvimento com mock. Sem esta linha

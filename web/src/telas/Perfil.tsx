@@ -17,6 +17,13 @@ const TEMAS: { valor: Tema; rotulo: string; Icone: typeof Sun }[] = [
 ];
 
 /**
+ * Entrada da tela de conta. Desligada até o "Criar conta" seguir o fluxo do Supabase para
+ * usuário anônimo: primeiro `updateUser({ email })`, a pessoa confirma o e-mail, e só então
+ * `updateUser({ password })`. Hoje a tela diria "Conta criada." sem a senha ficar definida.
+ */
+const CONTA_DISPONIVEL = false;
+
+/**
  * Perfil: o que o app sabe sobre você e o que você controla.
  *
  * O perfil de saúde fica no aparelho enquanto não houver conta (Docs/Design/design-system.md,
@@ -132,14 +139,16 @@ export function Perfil() {
               titulo="Você está usando sem conta"
               Icone={Smartphone}
               acoes={
-                <>
-                  <Botao variante="secundaria" pequeno onClick={() => navegar('/conta')}>
-                    Criar conta
-                  </Botao>
-                  <Botao variante="discreta" pequeno onClick={() => navegar('/conta')}>
-                    Já tenho conta
-                  </Botao>
-                </>
+                CONTA_DISPONIVEL ? (
+                  <>
+                    <Botao variante="secundaria" pequeno onClick={() => navegar('/conta')}>
+                      Criar conta
+                    </Botao>
+                    <Botao variante="discreta" pequeno onClick={() => navegar('/conta')}>
+                      Já tenho conta
+                    </Botao>
+                  </>
+                ) : undefined
               }
             >
               Tudo que você checou e o seu perfil ficam guardados só neste aparelho. Se desinstalar

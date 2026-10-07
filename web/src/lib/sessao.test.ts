@@ -112,4 +112,26 @@ describe('sessão anônima', () => {
 
     expect(definirToken).toHaveBeenCalledWith(null);
   });
+
+  it('exceção do SDK também não derruba o app', async () => {
+    const falso = supabaseFalso(null, {});
+    falso.auth.getSession.mockRejectedValue(new Error('rede caiu'));
+    criarClient.mockReturnValue(falso);
+
+    const { iniciarSessao } = await carregarSessao();
+    await expect(iniciarSessao()).resolves.toBeUndefined();
+
+    expect(definirToken).toHaveBeenCalledWith(null);
+  });
+
+  it('sair e entrar de novo não acumula ouvintes de renovação', async () => {
+    const falso = supabaseFalso('jwt', {});
+    criarClient.mockReturnValue(falso);
+
+    const { iniciarSessao } = await carregarSessao();
+    await iniciarSessao();
+    await iniciarSessao();
+
+    expect(falso.auth.onAuthStateChange).toHaveBeenCalledTimes(1);
+  });
 });

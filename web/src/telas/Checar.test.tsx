@@ -4,6 +4,7 @@
  */
 
 import { render, screen } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -46,6 +47,19 @@ describe('Checar: compartilhamento do Android', () => {
     abrirCom('?text=detox%20funciona');
 
     expect(window.location.search).toBe('');
+  });
+
+  it('no StrictMode, o texto compartilhado não se perde na segunda chamada', () => {
+    window.history.replaceState({}, '', '/?text=jejum%20seco');
+    render(
+      <StrictMode>
+        <MemoryRouter>
+          <Checar />
+        </MemoryRouter>
+      </StrictMode>,
+    );
+
+    expect(screen.getByRole('textbox')).toHaveValue('jejum seco');
   });
 
   it('sem compartilhamento, mantém o rascunho de antes', () => {
