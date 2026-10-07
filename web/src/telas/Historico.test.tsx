@@ -71,6 +71,17 @@ describe('Historico', () => {
     expect(screen.getByText('É mito')).toBeInTheDocument();
   });
 
+  it('mostra os itens como no protótipo: lista de verdade, cada linha um botão com a data', () => {
+    gravar('historico', [itemBase, { ...itemBase, id: '2', entrada: 'Limão emagrece?' }]);
+    montar();
+
+    const linhas = screen.getAllByRole('listitem');
+    expect(linhas).toHaveLength(2);
+    // O texto de cada linha é o nome acessível do botão: selo, pergunta e quando foi.
+    expect(screen.getByRole('button', { name: /Ovo faz mal\?.*Hoje/ })).toHaveClass('row');
+    expect(screen.getByText('Suas checagens ficam salvas só neste aparelho.')).toBeInTheDocument();
+  });
+
   it('Clicar em um item navega para /resultado/<trace_id>', async () => {
     const usuario = userEvent.setup();
     gravar('historico', [itemBase]);

@@ -1,6 +1,6 @@
+import { ChevronRight, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Aviso } from '../componentes/Aviso';
 import { Botao } from '../componentes/Botao';
 import { SeloDeVeredito } from '../componentes/CardDeVeredito';
 import { gravar, ler } from '../lib/armazenamento';
@@ -61,18 +61,24 @@ export function Historico() {
       </header>
       <main className="tela-conteudo">
         <div className="pilha">
-          <Aviso tipo="informacao">As checagens ficam salvas só neste aparelho.</Aviso>
+          <p className="small muted">Suas checagens ficam salvas só neste aparelho.</p>
 
-          <ul className="historico">
+          {/* Mesma lista do protótipo (Docs/Design/prototipo, tela de Histórico): linhas
+              separadas por um fio, com a seta de "abre", e não cards soltos. */}
+          <ul className="rows historico">
             {itens.map((item) => (
-              <li key={item.id} className="historico-item">
+              <li key={item.id}>
                 <button
-                  className="historico-abrir"
+                  type="button"
+                  className="row"
                   onClick={() => navegar(`/resultado/${item.id}`)}
                 >
-                  <SeloDeVeredito veredito={item.resposta.verdict} />
-                  <span className="historico-entrada">{item.entrada}</span>
-                  <span className="historico-meta">{formatarData(item.em)}</span>
+                  <span className="row-main">
+                    <SeloDeVeredito veredito={item.resposta.verdict} />
+                    <span className="row-title historico-entrada">{item.entrada}</span>
+                    <span className="caption">{formatarData(item.em)}</span>
+                  </span>
+                  <ChevronRight className="chev" aria-hidden="true" />
                 </button>
               </li>
             ))}
@@ -93,6 +99,7 @@ export function Historico() {
               </div>
             ) : (
               <Botao variante="discreta" onClick={() => setConfirmando(true)}>
+                <Trash2 aria-hidden="true" />
                 Apagar histórico
               </Botao>
             )}
