@@ -7,6 +7,7 @@ import { Botao } from '../componentes/Botao';
 import { Chip } from '../componentes/Chip';
 import { ler } from '../lib/armazenamento';
 import { CONDICOES, RESTRICOES, ROTINAS, idadeDe, listarRotulos, rotuloDe } from '../lib/perfil';
+import { CONTA_DISPONIVEL } from '../lib/sessao';
 import type { Tema } from '../lib/tema';
 import { definirTema } from '../lib/tema';
 
@@ -15,13 +16,6 @@ const TEMAS: { valor: Tema; rotulo: string; Icone: typeof Sun }[] = [
   { valor: 'light', rotulo: 'Claro', Icone: Sun },
   { valor: 'dark', rotulo: 'Escuro', Icone: Moon },
 ];
-
-/**
- * Entrada da tela de conta. Desligada até o "Criar conta" seguir o fluxo do Supabase para
- * usuário anônimo: primeiro `updateUser({ email })`, a pessoa confirma o e-mail, e só então
- * `updateUser({ password })`. Hoje a tela diria "Conta criada." sem a senha ficar definida.
- */
-const CONTA_DISPONIVEL = false;
 
 /**
  * Perfil: o que o app sabe sobre você e o que você controla.
