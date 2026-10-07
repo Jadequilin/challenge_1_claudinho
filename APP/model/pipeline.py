@@ -132,6 +132,7 @@ def executar_pipeline_de_checagem(
             settings=settings,
             pergunta_amigavel=pergunta_amigavel,
             dados_sensiveis=dados_sensiveis,
+            aceitar_sem_evidencia=False,
         )
         return CheckClaimResponse(
             trace_id=trace_id,
@@ -176,7 +177,11 @@ def executar_pipeline_de_checagem(
         risk_score=risk_score,
         risk_level=_definir_nivel_risco(risk_score),
         answer=answer,
-        sources=fontes,
+        # Sem evidencia, os trechos recuperados nao tratam da pergunta: lista-los como fonte
+        # e o "veredito com cara de certo" que o comentario do inicio desta funcao descreve.
+        # Fica igual ao outro caminho de sem_evidencia, o da busca vazia, que tambem nao
+        # devolve fonte. Um [Ref] que sobrar no texto o app descarta (Resultado.tsx).
+        sources=[] if verdict == "sem_evidencia" else fontes,
         disclaimer=disclaimers.montar_disclaimer(verdict, contexto_dos_avisos),
         cached=False,
         latency_ms=latency_ms,

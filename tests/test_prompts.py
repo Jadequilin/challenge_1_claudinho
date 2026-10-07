@@ -38,9 +38,9 @@ def _checar():
     )
 
 
-def test_versao_ativa_e_a_v2_e_vai_para_a_resposta(prompts_enviados):
+def test_versao_ativa_e_a_v2_2_e_vai_para_a_resposta(prompts_enviados):
     """O prompt_version no log e o que permite comparar qualidade entre versoes."""
-    assert _checar().prompt_version == "rag-v2.0"
+    assert _checar().prompt_version == "rag-v2.2"
 
 
 @pytest.mark.parametrize("versao", list(prompts.VERSOES))
@@ -95,7 +95,23 @@ def test_resposta_sem_evidencia_segue_o_estilo_da_v2(base_de_teste, prompts_envi
 def test_v2_1_existe_mas_nao_esta_ativa():
     """A troca de versao e decisao do grupo, depois de comparar no benchmark."""
     assert "rag-v2.1" in prompts.VERSOES
-    assert prompts.VERSAO_ATIVA == "rag-v2.0"
+    assert prompts.VERSAO_ATIVA == "rag-v2.2"
+
+
+def test_exemplo_de_json_da_v2_2_tem_o_campo_de_evidencia():
+    exemplo = re.findall(r"\{\"answer\".*\}", prompts.SISTEMA_RAG_V2_2)[-1]
+
+    assert set(json.loads(exemplo)) == {"answer", "risk_score", "evidencia_suficiente"}
+
+
+def test_v2_2_e_a_v2_com_o_campo_de_evidencia():
+    """A v2.2 nasce de um replace na v2. Se o texto da v2 mudar e o replace nao casar, a
+    v2.2 vira copia da v2 sem o campo, e nada quebra: so o veredito volta a errar."""
+    assert prompts.SISTEMA_RAG_V2_2 != prompts.SISTEMA_RAG_V2
+    assert "evidencia_suficiente" in prompts.SISTEMA_RAG_V2_2
+    assert prompts.SISTEMA_RAG_V2_2.startswith(
+        prompts.SISTEMA_RAG_V2.split("risk_score (0 a 1)")[0]
+    )
 
 
 def test_nenhum_prompt_copia_perguntas_do_benchmark():
