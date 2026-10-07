@@ -125,9 +125,14 @@ describe('fluxo de checagem', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Checar' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Escreva a dúvida, cole um link ou envie um print',
-    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Escreva a dúvida ou cole um link');
+  });
+
+  it('não oferece enviar print enquanto a API não lê imagem', () => {
+    abrirApp();
+
+    expect(screen.queryByRole('button', { name: /enviar print/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/print/i)).not.toBeInTheDocument();
   });
 });
 

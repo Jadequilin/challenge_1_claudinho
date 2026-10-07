@@ -15,6 +15,13 @@ import { Botao } from '../componentes/Botao';
 import type { PedidoDeChecagem } from '../lib/api/tipos';
 import { gravar, ler } from '../lib/armazenamento';
 
+/**
+ * Envio de print desligado ate a API ler imagem. Hoje ela recusa com 422
+ * `input_nao_suportado`, porque o OCR nao existe: mostrar o botao fazia a pessoa escolher a
+ * imagem, esperar e so entao ler que nao da. O codigo fica para quando a leitura existir.
+ */
+const PRINT_DISPONIVEL = false;
+
 /** Limite do contrato para imagem (Docs/Production/01, secao 2.1). */
 const MAXIMO_DA_IMAGEM = 5 * 1024 * 1024;
 
@@ -181,7 +188,7 @@ export function Checar() {
     const limpo = valor.trim();
 
     if (!limpo && !imagem) {
-      setErro('Escreva a dúvida, cole um link ou envie um print para eu checar.');
+      setErro('Escreva a dúvida ou cole um link para eu checar.');
       return;
     }
 
@@ -245,7 +252,7 @@ export function Checar() {
         <div className="pilha">
           <div className="pilha-curta">
             <h1 className="h1">O que você viu por aí?</h1>
-            <p className="lede">Manda do jeito que chegou para você: texto, link ou print.</p>
+            <p className="lede">Manda do jeito que chegou para você: texto ou link.</p>
           </div>
 
           {offline && (
@@ -294,15 +301,17 @@ export function Checar() {
                   <ClipboardPaste aria-hidden="true" />
                   Colar
                 </Botao>
-                <Botao
-                  variante="secundaria"
-                  pequeno
-                  type="button"
-                  onClick={() => arquivoRef.current?.click()}
-                >
-                  <ImagePlus aria-hidden="true" />
-                  Enviar print
-                </Botao>
+                {PRINT_DISPONIVEL && (
+                  <Botao
+                    variante="secundaria"
+                    pequeno
+                    type="button"
+                    onClick={() => arquivoRef.current?.click()}
+                  >
+                    <ImagePlus aria-hidden="true" />
+                    Enviar print
+                  </Botao>
+                )}
                 {/* A região viva fica sempre no DOM: criada junto com o conteúdo, ela
                     normalmente não é anunciada pelo leitor de tela. */}
                 <span className="detected" aria-live="polite">
@@ -436,7 +445,7 @@ export function Checar() {
                     </li>
                     <li>
                       <strong>iPhone (Safari):</strong> toque em Compartilhar e em Adicionar à Tela
-                      de Início. No iPhone, use Colar ou Enviar print para checar.
+                      de Início. No iPhone, use Colar para checar.
                     </li>
                   </ol>
                 </details>

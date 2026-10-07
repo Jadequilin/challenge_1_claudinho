@@ -50,7 +50,7 @@ export class ErroDaApi extends Error {
  * e o que fazer, sem pedir desculpa e sem "Ops".
  */
 export const MENSAGEM_DE_ERRO: Record<CodigoDeErro, string> = {
-  invalid_input: 'Escreva a dúvida, cole um link ou envie um print para eu checar.',
+  invalid_input: 'Escreva a dúvida ou cole um link para eu checar.',
   // A API recusa print e link desde o PR #15, de propósito: responder sem conseguir ler
   // o conteúdo daria veredito confiante sobre o assunto errado. Enquanto OCR e leitura
   // de página não existem, a tela diz o que dá para fazer agora.
