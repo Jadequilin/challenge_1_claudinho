@@ -62,11 +62,16 @@ def gerar_resposta_grounded(
     settings: Settings,
     pergunta_amigavel: str = "",
     dados_sensiveis: bool = False,
+    aceitar_sem_evidencia: bool = True,
 ) -> tuple[str, float, str, str, str]:
     """Gera a resposta ancorada nos chunks científicos em tom humano e acolhedor.
 
     `dados_sensiveis` deve ser True quando o perfil de saude entrar no prompt: assim a
     geracao fica restrita ao modelo proprio (ver APP/model/llm.py).
+
+    `aceitar_sem_evidencia` e False na comparacao da TBCA: ali o contexto e tabela de
+    nutrientes, nao estudo, e o modelo pode responder que "os estudos nao tratam" de um
+    dado que a tabela responde direto.
 
     Retorna tupla:
       (answer, risk_score, verdict, model_version, prompt_version)
@@ -115,8 +120,11 @@ def gerar_resposta_grounded(
     # tem base, e transformado em veredito dizia "Pode confiar" ou "E mito" ao lado de um
     # texto dizendo que nao ha estudo. Vem antes dos padroes semanticos de proposito: sem
     # estudo para mostrar, nem um consenso conhecido vira veredito.
-    if _sem_evidencia_suficiente(resposta_llm):
-        adicionar_ao_log(generation={"evidencia_suficiente": False})
+    sem_evidencia = _sem_evidencia_suficiente(resposta_llm)
+    # Logado sempre, e nao so quando falta: e o que permite medir a taxa em producao e
+    # cruzar com o low_coverage do retriever.
+    adicionar_ao_log(generation={"evidencia_suficiente": not sem_evidencia})
+    if sem_evidencia and aceitar_sem_evidencia:
         return answer, 0.50, "sem_evidencia", provedor.versao, prompt_version
 
     padrao = classificar_padrao_semantico(alegacao_canonica) or classificar_padrao_semantico(
@@ -138,13 +146,18 @@ def _sem_evidencia_suficiente(resposta_llm: dict[str, object]) -> bool:
     """True so quando o modelo diz explicitamente que os estudos nao bastam.
 
     Campo ausente conta como suficiente: e o que as versoes de prompt anteriores a
-    rag-v2.2 devolvem, e elas continuam se comportando como antes. Aceita tambem "false"
-    como texto, porque modelo pequeno as vezes devolve o booleano entre aspas.
+    rag-v2.2 devolvem, e elas continuam se comportando como antes. Aceita tambem o
+    negativo escrito de outros jeitos ("false", 0, "não"), porque modelo pequeno as vezes
+    devolve o booleano torto.
     """
     valor = resposta_llm.get("evidencia_suficiente", True)
     if isinstance(valor, str):
-        return valor.strip().lower() == "false"
-    return valor is False
+        return valor.strip().lower() in _NEGATIVOS
+    # bool e subclasse de int: False == 0, entao os dois caem aqui.
+    return isinstance(valor, int | float) and valor == 0
+
+
+_NEGATIVOS = {"false", "0", "no", "não", "nao"}
 
 
 _REFERENCIA = re.compile(r"\[Ref:\s*([^\]]+)\]")
